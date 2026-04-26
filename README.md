@@ -109,6 +109,19 @@ To run the benchmark suite from the paper:
 npm run test:benchmark
 ```
 
+## Try the demos online
+
+The interactive per-pattern demos and the all-pattern benchmark dashboard can be deployed straight to Vercel from a fork of this repo.
+
+```bash
+# Push your fork; in Vercel: New Project → import the repo → Deploy.
+# (No build command needed; it serves static files.)
+```
+
+The included [vercel.json](vercel.json) sets the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers required for `SharedArrayBuffer`, so all three variants (MP / Shared / GPU) work in the deployed app. The root URL redirects to `/browser-demo/`, which has the navigation across all demos and the [benchmark dashboard](browser-demo/benchmarks.html).
+
+GitHub Pages also works for the MP and GPU variants, but does not support custom headers, so the Shared variant will not run there without a service-worker workaround. Cloudflare Pages and Netlify are equivalent to Vercel.
+
 ## Citing
 
 If you use ParaWeb in academic work, please cite:

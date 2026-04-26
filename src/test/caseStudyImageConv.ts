@@ -146,7 +146,7 @@ async function gpuConv(input: Float32Array, width: number, height: number): Prom
   }
   const { inputBuf, outputBuf, stagingBuf, bindGroup } = cached;
 
-  device.queue.writeBuffer(inputBuf, 0, input);
+  device.queue.writeBuffer(inputBuf, 0, input.buffer, input.byteOffset, input.byteLength);
 
   const enc = device.createCommandEncoder();
   const pass = enc.beginComputePass();
