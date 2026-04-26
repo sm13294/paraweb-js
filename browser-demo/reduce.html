@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Reduce Browser Demo</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      input, button, select {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      .output {
+        white-space: pre-wrap;
+        background: #f5f5f5;
+        padding: 12px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ParaWeb Browser Demos</h1>
+    <div class="row">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./accumulator.html">Accumulator</a> |
+      <a href="./mapreduce.html">MapReduce</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./farm.html">Farm</a> |
+      <a href="./pipeline.html">Pipeline</a> |
+      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
+      <a href="./benchmarks.html">Benchmarks</a>
+    </div>
+    <h2>Reduce (Browser Worker) Demo</h2>
+    <div class="row">
+      <label for="size">Input size</label>
+      <input id="size" type="number" min="1" value="100000" />
+      <label for="max">Max value</label>
+      <input id="max" type="number" min="1" value="100" />
+    </div>
+    <div class="row">
+      <label for="fnSelect">Reduce function</label>
+      <select id="fnSelect">
+        <option value="sumTrig10" selected>Heavy: associative sum + 10-iteration trig per-element transform (paper)</option>
+        <option value="sum">Sum</option>
+        <option value="product">Product</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="variantSelect">Variant</label>
+      <select id="variantSelect">
+        <option value="mp" selected>MP (Worker Threads, postMessage)</option>
+        <option value="shared">Shared (SharedArrayBuffer)</option>
+        <option value="gpu">GPU (WebGPU compute shader)</option>
+      </select>
+      <label for="threads">Threads</label>
+      <input id="threads" type="number" min="1" value="4" />
+      <button id="run">Run</button>
+    </div>
+    <div class="row">
+      <strong>Output</strong>
+      <div id="output" class="output"></div>
+    </div>
+    <script src="../browser-bench/gpu-bundle.js"></script>
+    <script type="module">
+      import { ReduceBrowser } from "./reduceBrowser.js";
+      import { ReduceSharedBrowser } from "./reduceSharedBrowser.js";
+
+      const reduceMP = new ReduceBrowser();
+      const reduceShared = new ReduceSharedBrowser();
+      const variantSelectEl = document.getElementById("variantSelect");
+
+      // GPU Reduce: associative built-in op + optional per-element preOp.
+      // sumTrig10 matches the paper's Reduce workload (trig_reduce_10).
+      const gpuReduceMap = {
+        sumTrig10: { op: "add", preOp: "trig_reduce_10" },
+        sum: { op: "add", preOp: undefined },
+        product: { op: "mul", preOp: undefined },
+      };
+      const sizeEl = document.getElementById("size");
+      const maxEl = document.getElementById("max");
+      const fnSelectEl = document.getElementById("fnSelect");
+      const threadsEl = document.getElementById("threads");
+      const outputEl = document.getElementById("output");
+      const runBtn = document.getElementById("run");
+
+      runBtn.addEventListener("click", async () => {
+        outputEl.textContent = "Running...";
+        const size = Math.max(1, Number(sizeEl.value) || 1);
+        const maxVal = Math.max(1, Number(maxEl.value) || 100);
+        const input = Array.from({ length: size }, () =>
+          Math.floor(Math.random() * maxVal) + 1
+        );
+
+        const fnMap = {
+          // Associative sum over a 10-iteration trig per-element transform.
+          // Matches the Reduce workload reported in the paper (Section 5.2).
+          // The combine operator stays associative; per-element work is
+          // supplied as a separate mapFn so correctness holds across chunks.
+          sumTrig10: {
+            fn: (acc, x) => acc + x,
+            initial: 0,
+            mapFn: (x) => {
+              let v = x;
+              for (let k = 0; k < 10; k++) {
+                v = Math.sin(v) + Math.cos(v * 0.5);
+              }
+              return v;
+            },
+          },
+          sum: { fn: (acc, x) => acc + x, initial: 0 },
+          product: { fn: (acc, x) => acc * x, initial: 1 },
+        };
+        const fnKey = fnSelectEl.value;
+        const { fn, initial, mapFn } = fnMap[fnKey];
+        const threads = Number(threadsEl.value) || undefined;
+        const variant = variantSelectEl.value;
+
+        const start = performance.now();
+        try {
+          let result;
+          if (variant === "gpu") {
+            if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
+              throw new Error("WebGPU is not available in this browser/context.");
+            }
+            const cfg = gpuReduceMap[fnKey];
+            if (!cfg) {
+              throw new Error(`GPU variant does not support the "${fnKey}" scenario in this demo.`);
+            }
+            result = await new window.PW_GPU.Reduce().reduce(cfg.op, input, initial, cfg.preOp);
+          } else if (variant === "shared") {
+            result = await reduceShared.reduce(fn, input, initial, threads, mapFn);
+          } else {
+            result = await reduceMP.reduce(fn, input, initial, threads, mapFn);
+          }
+          const elapsed = performance.now() - start;
+          outputEl.textContent = `Result: ${result}\nTime: ${elapsed.toFixed(2)}ms`;
+        } catch (error) {
+          outputEl.textContent = "Error: " + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

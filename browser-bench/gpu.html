@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ParaWeb Browser GPU Benchmark</title>
+</head>
+<body>
+  <h1>ParaWeb Browser GPU Benchmark</h1>
+  <pre id="log" style="background:#f5f5f5;padding:12px;border:1px solid #ddd;max-height:600px;overflow:auto"></pre>
+
+  <script src="./gpu-bundle.js"></script>
+  <script>
+    const log = (s) => { const el = document.getElementById("log"); el.textContent += s + "\n"; };
+    const now = () => performance.now();
+
+    async function timeIt(fn, runs, warmup) {
+      for (let i = 0; i < warmup; i++) await fn();
+      let total = 0;
+      for (let i = 0; i < runs; i++) {
+        const t0 = now();
+        await fn();
+        total += now() - t0;
+      }
+      return total / runs;
+    }
+
+    function seededInput(size, maxVal) {
+      const arr = new Array(size);
+      let s = 42;
+      for (let i = 0; i < size; i++) { s = (s * 1103515245 + 12345) & 0x7fffffff; arr[i] = (s % maxVal) + 1; }
+      return arr;
+    }
+
+    window.checkGPU = async function() {
+      if (typeof navigator === "undefined" || !navigator.gpu) {
+        return { available: false, reason: "navigator.gpu missing" };
+      }
+      try {
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) return { available: false, reason: "adapter is null" };
+        const info = { vendor: adapter.info?.vendor, architecture: adapter.info?.architecture };
+        return { available: true, info };
+      } catch (e) {
+        return { available: false, reason: String(e) };
+      }
+    };
+
+    const __gpuInputCache = new Map();
+    function __getGPUInput(key, factory) {
+      let v = __gpuInputCache.get(key);
+      if (v === undefined) { v = factory(); __gpuInputCache.set(key, v); }
+      return v;
+    }
+
+    // Input generators mirror browser-bench/index.html exactly.
+    const modInput = (size, mod, offset) => {
+      const arr = new Array(size);
+      for (let i = 0; i < size; i++) arr[i] = (i % mod) + offset;
+      return arr;
+    };
+
+    window.runGPUBench = async function(config) {
+      const patterns = config.patterns || Object.keys(window.PW_GPU).filter(k => k !== "isGPUAvailable");
+      const size = config.size || 10000000;
+      const runs = config.runs || 3;
+      const warmup = config.warmup || 1;
+      const results = [];
+      for (const pat of patterns) {
+        const Cls = window.PW_GPU[pat];
+        if (!Cls) { log(`skip ${pat} (no class)`); continue; }
+        const inst = new Cls();
+        try {
+          let fn;
+          switch (pat) {
+            case "Map": {
+              // Browser CPU Map: modInput(1000, 1), 50-iter trig.
+              const input = __getGPUInput("Map:" + size, () => modInput(size, 1000, 1));
+              fn = () => inst.map("trig_50", input);
+              break;
+            }
+            case "Filter": {
+              // Browser CPU Filter: modInput(1000, 1), 30-iter trig + gt 2.
+              const input = __getGPUInput("Filter:" + size, () => modInput(size, 1000, 1));
+              fn = () => inst.filter("trig_gt2", input);
+              break;
+            }
+            case "Reduce": {
+              // Fused 10-iter trig pre-transform + associative sum, matching the
+              // CPU Reduce mapFn (apples-to-apples GPU vs CPU comparison).
+              const input = __getGPUInput("Reduce:" + size, () => modInput(size, 100, 1));
+              fn = () => inst.reduce("add", input, 0, "trig_reduce_10");
+              break;
+            }
+            case "Scan": {
+              // Fused 50-iter trig pre-transform + inclusive prefix-sum, matching
+              // the CPU Scan heavyFn (apples-to-apples GPU vs CPU comparison).
+              const input = __getGPUInput("Scan:" + size, () => modInput(size, 100, 1));
+              fn = () => inst.scan("add", input, 0, "trig_scan_50");
+              break;
+            }
+            case "MapReduce": {
+              // Browser CPU MapReduce: modInput(1000, 1), 50-iter trig + add.
+              const input = __getGPUInput("MapReduce:" + size, () => modInput(size, 1000, 1));
+              fn = () => inst.mapReduce("trig_50", "add", input);
+              break;
+            }
+            case "Scatter": {
+              // Browser CPU Scatter: seeded RNG, input 1..1000, indices 0..size/4,
+              // with the same fused 50-iter trig per-element transform so that
+              // GPU and CPU measure equivalent workloads.
+              const input = __getGPUInput("Scatter:input:" + size, () => seededInput(size, 1000));
+              const indices = __getGPUInput("Scatter:indices:" + size, () => seededInput(size, Math.floor(size / 4)));
+              fn = () => inst.scatter(input, indices, undefined, 0, "trig_scan_50");
+              break;
+            }
+            case "Stencil": {
+              // Browser CPU Stencil: modInput(100, 1), 15-iter trig refinement, 5-point weights.
+              const input = __getGPUInput("Stencil:" + size, () => modInput(size, 100, 1));
+              fn = () => inst.stencil("trig_15", input, [1, 2, 3, 2, 1]);
+              break;
+            }
+            case "Farm": {
+              // Browser CPU Farm: modInput(1000, 1000), Collatz.
+              const input = __getGPUInput("Farm:" + size, () => modInput(size, 1000, 1000));
+              fn = () => inst.farm("farm_collatz_trig_200", input);
+              break;
+            }
+            case "Pipeline": {
+              // Browser CPU Pipeline: modInput(1000, 1), 30-iter trig then 20-iter poly.
+              const input = __getGPUInput("Pipeline:" + size, () => modInput(size, 1000, 1));
+              fn = () => inst.pipeline(["trig_30", "poly_stage2"], input);
+              break;
+            }
+            case "DivideAndConquer": {
+              // D&C now uses parallel Cooley-Tukey FFT — same algorithm and
+              // input as CPU MP/Shared benchmarks, so comparison is apples-to-apples.
+              const input = __getGPUInput("DAC:fft-input:" + size, () => {
+                const buf = new Float64Array(2 * size);
+                for (let i = 0; i < size; i++) buf[2 * i] = Math.sin(i * 0.001) + Math.cos(i * 0.0005);
+                return buf;
+              });
+              fn = () => inst.fft(input);
+              break;
+            }
+            default: log(`skip ${pat} (no case)`); continue;
+          }
+          const time = await timeIt(fn, runs, warmup);
+          results.push({ pattern: pat, size, time });
+          log(`${pat.padEnd(20)} size=${size}: ${time.toFixed(2)}ms`);
+        } catch (e) {
+          log(`${pat.padEnd(20)} ERROR: ${String(e)}`);
+          results.push({ pattern: pat, size, error: String(e) });
+        }
+      }
+      return results;
+    };
+    log("ready. call window.checkGPU() first, then window.runGPUBench(config).");
+  </script>
+</body>
+</html>

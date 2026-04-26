@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Stencil Browser Demo</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      input, button, select {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      .output {
+        white-space: pre-wrap;
+        background: #f5f5f5;
+        padding: 12px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ParaWeb Browser Demos</h1>
+    <div class="row">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./accumulator.html">Accumulator</a> |
+      <a href="./mapreduce.html">MapReduce</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./farm.html">Farm</a> |
+      <a href="./pipeline.html">Pipeline</a> |
+      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
+      <a href="./benchmarks.html">Benchmarks</a>
+    </div>
+    <h2>Stencil (Browser Worker) Demo</h2>
+    <div class="row">
+      <label for="size">Input size</label>
+      <input id="size" type="number" min="1" value="100000" />
+      <label for="max">Max value</label>
+      <input id="max" type="number" min="1" value="100" />
+    </div>
+    <div class="row">
+      <label for="stencilSelect">Stencil kernel</label>
+      <select id="stencilSelect">
+        <option value="12321" selected>[1,2,3,2,1] (paper benchmark, 5-point)</option>
+        <option value="111">[1,1,1]</option>
+        <option value="121">[1,2,1]</option>
+        <option value="1111">[1,1,1,1]</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="workloadSelect">Per-element workload</label>
+      <select id="workloadSelect">
+        <option value="trig15" selected>Heavy: weighted sum + 15-iteration trig refinement (paper)</option>
+        <option value="weightedSum">Weighted sum only</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="variantSelect">Variant</label>
+      <select id="variantSelect">
+        <option value="mp" selected>MP (Worker Threads, postMessage)</option>
+        <option value="shared">Shared (SharedArrayBuffer)</option>
+        <option value="gpu">GPU (WebGPU compute shader)</option>
+      </select>
+      <label for="threads">Threads</label>
+      <input id="threads" type="number" min="1" value="4" />
+      <button id="run">Run</button>
+    </div>
+    <div class="row">
+      <strong>Output</strong>
+      <div id="output" class="output"></div>
+    </div>
+    <script src="../browser-bench/gpu-bundle.js"></script>
+    <script type="module">
+      import { StencilBrowser } from "./stencilBrowser.js";
+      import { StencilSharedBrowser } from "./stencilSharedBrowser.js";
+
+      const stencilMP = new StencilBrowser();
+      const stencilShared = new StencilSharedBrowser();
+      const variantSelectEl = document.getElementById("variantSelect");
+
+      // GPU Stencil: per-element op (built-in name or WGSL) applied after the
+      // weighted neighborhood sum. trig_15 matches the paper's Stencil refinement.
+      const gpuStencilOpMap = {
+        trig15: "trig_15",
+        weightedSum: undefined,
+      };
+      const sizeEl = document.getElementById("size");
+      const maxEl = document.getElementById("max");
+      const stencilSelectEl = document.getElementById("stencilSelect");
+      const threadsEl = document.getElementById("threads");
+      const outputEl = document.getElementById("output");
+      const runBtn = document.getElementById("run");
+
+      runBtn.addEventListener("click", async () => {
+        outputEl.textContent = "Running...";
+        const size = Math.max(1, Number(sizeEl.value) || 1);
+        const maxVal = Math.max(1, Number(maxEl.value) || 100);
+        const input = Array.from({ length: size }, () =>
+          Math.floor(Math.random() * maxVal)
+        );
+
+        const stencilMap = {
+          "12321": [1, 2, 3, 2, 1],
+          "111": [1, 1, 1],
+          "121": [1, 2, 1],
+          "1111": [1, 1, 1, 1],
+        };
+        const kernel = stencilMap[stencilSelectEl.value];
+        const workloadSelectEl = document.getElementById("workloadSelect");
+        // Paper Stencil workload: weighted neighborhood sum followed by a
+        // 15-iteration trigonometric refinement (Section 5.2).
+        const fnTrig15 = (val, neighbors, stencilKernel) => {
+          let result = 0;
+          for (let i = 0; i < neighbors.length; i++) {
+            result += (neighbors[i] || 0) * stencilKernel[i];
+          }
+          for (let iter = 0; iter < 15; iter++) {
+            result = Math.sin(result * 0.01) * 100 + Math.cos(result * 0.01) * 50;
+            result = Math.sqrt(Math.abs(result) + 1);
+          }
+          return result;
+        };
+        const fnWeighted = (val, neighbors, stencilKernel) => {
+          let result = 0;
+          neighbors.forEach((neighbor, i) => {
+            result += (neighbor || 0) * stencilKernel[i];
+          });
+          return result;
+        };
+        const workloadKey = workloadSelectEl.value;
+        const fn = workloadKey === "trig15" ? fnTrig15 : fnWeighted;
+        const threads = Number(threadsEl.value) || undefined;
+        const variant = variantSelectEl.value;
+
+        const start = performance.now();
+        try {
+          let result;
+          if (variant === "gpu") {
+            if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
+              throw new Error("WebGPU is not available in this browser/context.");
+            }
+            const op = gpuStencilOpMap[workloadKey];
+            result = await new window.PW_GPU.Stencil().stencil(op, input, kernel);
+          } else if (variant === "shared") {
+            result = await stencilShared.stencil(fn, input, kernel, threads, { type: "zero" });
+          } else {
+            result = await stencilMP.stencil(fn, input, kernel, threads, { type: "zero" });
+          }
+          const elapsed = performance.now() - start;
+          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          outputEl.textContent =
+            `Output length: ${result.length}\n` +
+            `Sample: ${sample}\n` +
+            `Time: ${elapsed.toFixed(2)}ms`;
+        } catch (error) {
+          outputEl.textContent = "Error: " + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

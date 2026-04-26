@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Map Browser Demo</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      input, button, textarea {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      textarea {
+        width: 100%;
+        height: 80px;
+      }
+      .output {
+        white-space: pre-wrap;
+        background: #f5f5f5;
+        padding: 12px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ParaWeb Browser Demos</h1>
+    <div class="row">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./accumulator.html">Accumulator</a> |
+      <a href="./mapreduce.html">MapReduce</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./farm.html">Farm</a> |
+      <a href="./pipeline.html">Pipeline</a> |
+      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
+      <a href="./benchmarks.html">Benchmarks</a>
+    </div>
+    <div class="row">
+      <strong>Case study:</strong> <a href="./imageConv.html">Interactive image convolution</a>
+      (pick a variant, drag the slider, watch the output update in real time).
+    </div>
+    <h2>Map (Browser Worker) Demo</h2>
+    <div class="row">
+      <label for="size">Input size</label>
+      <input id="size" type="number" min="1" value="100000" />
+      <label for="max">Max value</label>
+      <input id="max" type="number" min="1" value="1000" />
+    </div>
+    <div class="row">
+      <label for="fnSelect">Map function</label>
+      <select id="fnSelect">
+        <option value="trig50" selected>Heavy: 50-iteration trig+poly (paper benchmark)</option>
+        <option value="double">Double (x * 2)</option>
+        <option value="squarePlus">Square plus 1 (x * x + 1)</option>
+        <option value="indexAdd">Add index (x + i)</option>
+        <option value="collatz">Collatz steps</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="variantSelect">Variant</label>
+      <select id="variantSelect">
+        <option value="mp" selected>MP (Worker Threads, postMessage)</option>
+        <option value="shared">Shared (SharedArrayBuffer)</option>
+        <option value="gpu">GPU (WebGPU compute shader)</option>
+      </select>
+      <label for="threads">Threads</label>
+      <input id="threads" type="number" min="1" value="4" />
+      <button id="run">Run</button>
+    </div>
+    <div class="row">
+      <strong>Output</strong>
+      <div id="output" class="output"></div>
+    </div>
+    <p style="margin-top: 16px; color: #555;">
+      Want to benchmark all patterns at once across MP/Shared/GPU variants with a chart? See the
+      <a href="./benchmarks.html"><strong>Benchmark Dashboard</strong></a>.
+    </p>
+    <script src="../browser-bench/gpu-bundle.js"></script>
+    <script type="module">
+      import { MapBrowser } from "./mapBrowser.js";
+      import { MapSharedBrowser } from "./mapSharedBrowser.js";
+
+      const mapMP = new MapBrowser();
+      const mapShared = new MapSharedBrowser();
+      const variantSelectEl = document.getElementById("variantSelect");
+
+      // Map fnKey to either a built-in WGSL operation name (matches the paper
+      // benchmark) or a custom WGSL expression. Scenarios that cannot be
+      // expressed in WGSL without complex control flow (e.g., Collatz steps)
+      // resolve to null and produce an error message.
+      const gpuOpMap = {
+        trig50: "trig_50",
+        double: { wgsl: "x * 2.0" },
+        squarePlus: { wgsl: "x * x + 1.0" },
+        indexAdd: null,
+        collatz: null,
+      };
+      const sizeEl = document.getElementById("size");
+      const maxEl = document.getElementById("max");
+      const fnSelectEl = document.getElementById("fnSelect");
+      const threadsEl = document.getElementById("threads");
+      const outputEl = document.getElementById("output");
+      const runBtn = document.getElementById("run");
+
+      runBtn.addEventListener("click", async () => {
+        outputEl.textContent = "Running...";
+        const size = Math.max(1, Number(sizeEl.value) || 1);
+        const maxVal = Math.max(1, Number(maxEl.value) || 100);
+        const input = Array.from({ length: size }, () =>
+          Math.floor(Math.random() * maxVal)
+        );
+        const fnKey = fnSelectEl.value;
+        const fnMap = {
+          // 50-iteration trig+poly transform; matches the Map workload reported in
+          // the paper (Section 5.2). Heavy enough that worker coordination amortizes.
+          trig50: (x) => {
+            let v = x;
+            for (let k = 0; k < 50; k++) {
+              v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+              v = v * v + 1;
+            }
+            return v;
+          },
+          double: (x) => x * 2,
+          squarePlus: (x) => x * x + 1,
+          indexAdd: (x, i) => x + i,
+          collatz: (n) => {
+            let steps = 0;
+            let num = n;
+            while (num !== 1) {
+              if (num % 2 === 0) {
+                num = num / 2;
+              } else {
+                num = 3 * num + 1;
+              }
+              steps++;
+              if (steps > 10000) break;
+            }
+            return steps;
+          },
+        };
+        const fn = fnMap[fnKey];
+        const threads = Number(threadsEl.value) || undefined;
+        const variant = variantSelectEl.value;
+        const start = performance.now();
+        try {
+          let result;
+          if (variant === "gpu") {
+            if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
+              throw new Error("WebGPU is not available in this browser/context.");
+            }
+            const op = gpuOpMap[fnKey];
+            if (op == null) {
+              throw new Error(`GPU variant does not support the "${fnKey}" scenario in this demo. Pick the heavy paper workload, double, or squarePlus.`);
+            }
+            result = await new window.PW_GPU.Map().map(op, input);
+          } else if (variant === "shared") {
+            result = await mapShared.map(fn, input, threads);
+          } else {
+            result = await mapMP.map(fn, input, threads);
+          }
+          const elapsed = performance.now() - start;
+          const preview = Array.isArray(result) ? JSON.stringify(result.slice(0, 20)) : Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          outputEl.textContent = `Output length: ${result.length}\nSample: ${preview}\nTime: ${elapsed.toFixed(2)}ms`;
+        } catch (error) {
+          outputEl.textContent = "Error: " + error.message;
+        }
+      });
+
+    </script>
+  </body>
+</html>

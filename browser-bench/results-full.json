@@ -1,0 +1,772 @@
+[
+  {
+    "pattern": "Map",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 9645.738333304724
+  },
+  {
+    "pattern": "Filter",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 6336.303333361943
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 1413.2299999396007
+  },
+  {
+    "pattern": "Scan",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 12451.239999930063
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 12890.401666720709
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 2692.1749999523163
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 6685.266666650772
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "seq",
+    "size": 10000000,
+    "threads": 1,
+    "time": 9513.789999961853
+  },
+  {
+    "pattern": "Map",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 10490.213333368301
+  },
+  {
+    "pattern": "Map",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 5652.630000034968
+  },
+  {
+    "pattern": "Map",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 3159.9983332951865
+  },
+  {
+    "pattern": "Map",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1818.726666688919
+  },
+  {
+    "pattern": "Map",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 1233.0016666253407
+  },
+  {
+    "pattern": "Map",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 9777.348333358765
+  },
+  {
+    "pattern": "Map",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 5092.264999945958
+  },
+  {
+    "pattern": "Map",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 2695.250000079473
+  },
+  {
+    "pattern": "Map",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1447.7099999586742
+  },
+  {
+    "pattern": "Map",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 962.5633333524069
+  },
+  {
+    "pattern": "Filter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 7545.1449999809265
+  },
+  {
+    "pattern": "Filter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 4134.735000054042
+  },
+  {
+    "pattern": "Filter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 2403.9233334064484
+  },
+  {
+    "pattern": "Filter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1490.096666653951
+  },
+  {
+    "pattern": "Filter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 1069.675000031789
+  },
+  {
+    "pattern": "Filter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 6525.511666695277
+  },
+  {
+    "pattern": "Filter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 3380.8733332951865
+  },
+  {
+    "pattern": "Filter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 1793.2449999650319
+  },
+  {
+    "pattern": "Filter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1000.8383332888285
+  },
+  {
+    "pattern": "Filter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 652.7516667048136
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 2172.0299999713898
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 1266.2983333269756
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 766.1850000222524
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 506.89333335558575
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 412.08499995867413
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 1398.3950000603993
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 732.630000034968
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 378.2766667207082
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 205.3599999745687
+  },
+  {
+    "pattern": "Reduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 149.8100000222524
+  },
+  {
+    "pattern": "Scan",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 15741.405000050863
+  },
+  {
+    "pattern": "Scan",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 9255.83666674296
+  },
+  {
+    "pattern": "Scan",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 5278.413333415985
+  },
+  {
+    "pattern": "Scan",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 3243.3166666030884
+  },
+  {
+    "pattern": "Scan",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 2413.4116666316986
+  },
+  {
+    "pattern": "Scan",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 12873.23499997457
+  },
+  {
+    "pattern": "Scan",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 6642.808333317439
+  },
+  {
+    "pattern": "Scan",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 3537.540000041326
+  },
+  {
+    "pattern": "Scan",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1852.2349999745686
+  },
+  {
+    "pattern": "Scan",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 1217.5666666825612
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 16471.870000044506
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 8946.343333403269
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 5248.030000050862
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 3555.8883333206177
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 2933.3049999078116
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 13184.463333288828
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 6763.96833340327
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 3679.886666615804
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1879.7400000095367
+  },
+  {
+    "pattern": "Scatter",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 1165.4233333269756
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 4191.381666660309
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 2371.318333307902
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 1430.483333190282
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 921.5149999459585
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 730.255000034968
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 3690.6166666348777
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 1953.1166667143505
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 1067.1583333015442
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 618.6183333396912
+  },
+  {
+    "pattern": "Stencil",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 441.0916666984558
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 8952.791666666666
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 4805.9800000190735
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 2825.4683333237967
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1797.9450000921886
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 1263.9933332602184
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 7272.778333346049
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 3690.328333377838
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 2032.8766666253407
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1186.1516666412354
+  },
+  {
+    "pattern": "Pipeline",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 834.5099999904633
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 1,
+    "time": 11179.131666739782
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 2,
+    "time": 5944.913333336513
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 4,
+    "time": 3296.2416666348777
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1985.193333307902
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "mp",
+    "size": 10000000,
+    "threads": 16,
+    "time": 1325.6300000349681
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 1,
+    "time": 9901.963333288828
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 2,
+    "time": 5106.508333365123
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 4,
+    "time": 2714.3000000317893
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 8,
+    "time": 1465.403333346049
+  },
+  {
+    "pattern": "MapReduce",
+    "variant": "shared",
+    "size": 10000000,
+    "threads": 16,
+    "time": 964.0400000413259
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "seq",
+    "size": 8388608,
+    "threads": 1,
+    "time": 1256.4916666348774
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "mp",
+    "size": 8388608,
+    "threads": 1,
+    "time": 1349.0716667175293
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "mp",
+    "size": 8388608,
+    "threads": 2,
+    "time": 1128.0066666603088
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "mp",
+    "size": 8388608,
+    "threads": 4,
+    "time": 636.4683333237966
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "mp",
+    "size": 8388608,
+    "threads": 8,
+    "time": 569.4833333492279
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "mp",
+    "size": 8388608,
+    "threads": 16,
+    "time": 596.1733334064484
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "shared",
+    "size": 8388608,
+    "threads": 1,
+    "time": 1287.5616666475933
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "shared",
+    "size": 8388608,
+    "threads": 2,
+    "time": 821.335000038147
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "shared",
+    "size": 8388608,
+    "threads": 4,
+    "time": 584.846666653951
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "shared",
+    "size": 8388608,
+    "threads": 8,
+    "time": 488.28500000635785
+  },
+  {
+    "pattern": "DivideAndConquer",
+    "variant": "shared",
+    "size": 8388608,
+    "threads": 16,
+    "time": 479.3583333492279
+  },
+  {
+    "pattern": "Farm",
+    "variant": "seq",
+    "size": 5000000,
+    "threads": 1,
+    "time": 24082.948333422344
+  },
+  {
+    "pattern": "Farm",
+    "variant": "mp",
+    "size": 5000000,
+    "threads": 1,
+    "time": 25039.25666666031
+  },
+  {
+    "pattern": "Farm",
+    "variant": "mp",
+    "size": 5000000,
+    "threads": 2,
+    "time": 12986.44833334287
+  },
+  {
+    "pattern": "Farm",
+    "variant": "mp",
+    "size": 5000000,
+    "threads": 4,
+    "time": 6653.05166665713
+  },
+  {
+    "pattern": "Farm",
+    "variant": "mp",
+    "size": 5000000,
+    "threads": 8,
+    "time": 3483.328333377838
+  },
+  {
+    "pattern": "Farm",
+    "variant": "mp",
+    "size": 5000000,
+    "threads": 16,
+    "time": 2167.476666688919
+  },
+  {
+    "pattern": "Farm",
+    "variant": "shared",
+    "size": 5000000,
+    "threads": 1,
+    "time": 25782.81666668256
+  },
+  {
+    "pattern": "Farm",
+    "variant": "shared",
+    "size": 5000000,
+    "threads": 2,
+    "time": 13016.39666668574
+  },
+  {
+    "pattern": "Farm",
+    "variant": "shared",
+    "size": 5000000,
+    "threads": 4,
+    "time": 6572.868333339691
+  },
+  {
+    "pattern": "Farm",
+    "variant": "shared",
+    "size": 5000000,
+    "threads": 8,
+    "time": 3449.113333384196
+  },
+  {
+    "pattern": "Farm",
+    "variant": "shared",
+    "size": 5000000,
+    "threads": 16,
+    "time": 2033.074999968211
+  }
+]

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Pipeline Browser Demo</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      input, button, select {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      .output {
+        white-space: pre-wrap;
+        background: #f5f5f5;
+        padding: 12px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ParaWeb Browser Demos</h1>
+    <div class="row">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./accumulator.html">Accumulator</a> |
+      <a href="./mapreduce.html">MapReduce</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./farm.html">Farm</a> |
+      <a href="./pipeline.html">Pipeline</a> |
+      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
+      <a href="./benchmarks.html">Benchmarks</a>
+    </div>
+    <h2>Pipeline (Browser Worker) Demo</h2>
+    <div class="row">
+      <label for="size">Input size</label>
+      <input id="size" type="number" min="1" value="100000" />
+      <label for="max">Max value</label>
+      <input id="max" type="number" min="1" value="1000" />
+    </div>
+    <div class="row">
+      <label for="fnSelect">Pipeline scenario</label>
+      <select id="fnSelect">
+        <option value="trigPoly" selected>Heavy: 30-iteration trig then 20-iteration polynomial (paper)</option>
+        <option value="basic">Double → Add 1 → Square</option>
+        <option value="collatzTrig">Collatz → Trig</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="variantSelect">Variant</label>
+      <select id="variantSelect">
+        <option value="mp" selected>MP (Worker Threads, postMessage)</option>
+        <option value="shared">Shared (SharedArrayBuffer)</option>
+        <option value="gpu">GPU (WebGPU compute shader)</option>
+      </select>
+      <label for="threads">Threads</label>
+      <input id="threads" type="number" min="1" value="4" />
+      <button id="run">Run</button>
+    </div>
+    <div class="row">
+      <strong>Output</strong>
+      <div id="output" class="output"></div>
+    </div>
+    <script src="../browser-bench/gpu-bundle.js"></script>
+    <script type="module">
+      import { PipelineBrowser } from "./pipelineBrowser.js";
+      import { PipelineSharedBrowser } from "./pipelineSharedBrowser.js";
+
+      const pipelineMP = new PipelineBrowser();
+      const pipelineShared = new PipelineSharedBrowser();
+      const variantSelectEl = document.getElementById("variantSelect");
+
+      // GPU Pipeline: array of stage operations (each a built-in name or WGSL).
+      // trigPoly matches the paper's Pipeline workload (trig_30 then poly_stage2).
+      const gpuPipelineMap = {
+        trigPoly: ["trig_30", "poly_stage2"],
+        basic: [{ wgsl: "x * 2.0" }, { wgsl: "x + 1.0" }, { wgsl: "x * x" }],
+        collatzTrig: null,
+      };
+      const sizeEl = document.getElementById("size");
+      const maxEl = document.getElementById("max");
+      const fnSelectEl = document.getElementById("fnSelect");
+      const threadsEl = document.getElementById("threads");
+      const outputEl = document.getElementById("output");
+      const runBtn = document.getElementById("run");
+
+      runBtn.addEventListener("click", async () => {
+        outputEl.textContent = "Running...";
+        const size = Math.max(1, Number(sizeEl.value) || 1);
+        const maxVal = Math.max(1, Number(maxEl.value) || 1000);
+        const input = Array.from({ length: size }, () =>
+          Math.floor(Math.random() * maxVal) + 1
+        );
+
+        const scenarios = {
+          // Two-stage pipeline matching the paper benchmark (Section 5.2):
+          // stage 1 is a 30-iteration trigonometric transform, stage 2 is a
+          // 20-iteration polynomial evaluation with rounding.
+          trigPoly: [
+            (x) => {
+              let v = x;
+              for (let k = 0; k < 30; k++) {
+                v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+              }
+              return v;
+            },
+            (x) => {
+              let v = x;
+              for (let k = 0; k < 20; k++) {
+                v = v * 0.99 + 1.01;
+              }
+              return Math.round(v * 1000) / 1000;
+            },
+          ],
+          basic: [
+            (x) => x * 2,
+            (x) => x + 1,
+            (x) => x * x,
+          ],
+          collatzTrig: [
+            (n) => {
+              let steps = 0;
+              let num = n;
+              while (num !== 1) {
+                if (num % 2 === 0) {
+                  num = num / 2;
+                } else {
+                  num = 3 * num + 1;
+                }
+                steps++;
+                if (steps > 10000) break;
+              }
+              return steps;
+            },
+            (x) => Math.sin(x) + Math.cos(x) + Math.tan(x),
+          ],
+        };
+        const fnKey = fnSelectEl.value;
+        const stages = scenarios[fnKey];
+        const threads = Number(threadsEl.value) || undefined;
+        const variant = variantSelectEl.value;
+
+        const start = performance.now();
+        try {
+          let result;
+          if (variant === "gpu") {
+            if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
+              throw new Error("WebGPU is not available in this browser/context.");
+            }
+            const gpuStages = gpuPipelineMap[fnKey];
+            if (!gpuStages) {
+              throw new Error(`GPU variant does not support the "${fnKey}" scenario in this demo.`);
+            }
+            result = await new window.PW_GPU.Pipeline().pipeline(gpuStages, input);
+          } else if (variant === "shared") {
+            result = await pipelineShared.pipeline(stages, input, threads);
+          } else {
+            result = await pipelineMP.pipeline(stages, input, threads);
+          }
+          const elapsed = performance.now() - start;
+          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          outputEl.textContent =
+            `Output length: ${result.length}\n` +
+            `Sample: ${sample}\n` +
+            `Time: ${elapsed.toFixed(2)}ms`;
+        } catch (error) {
+          outputEl.textContent = "Error: " + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

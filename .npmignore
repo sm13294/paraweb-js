@@ -1,0 +1,30 @@
+# Source maps and tests are not needed in the published package.
+dist/**/*.map
+dist/test/
+
+# Dev artifacts
+src/test/
+.github/
+.vscode/
+.claude/
+node_modules/
+
+# Research / academic artifacts (not part of the library)
+paper/
+paper-hlpp/
+benchmark-results/
+browser-bench/
+browser-demo/
+scripts/
+BENCHMARK_METHODOLOGY.md
+BENCHMARK_README.md
+README-BENCH.md
+CLAUDE.md
+
+# Loose CSV exports
+paraweb-imgconv-*.csv
+
+# OS / editor
+.DS_Store
+*.log
+texput.log

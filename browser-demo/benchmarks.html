@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Benchmark Dashboard</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+        max-width: 1400px;
+      }
+      .nav {
+        margin-bottom: 16px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      .row label {
+        display: inline-block;
+        min-width: 110px;
+      }
+      input, button, select {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      fieldset {
+        border: 1px solid #ccc;
+        padding: 10px 14px;
+        margin: 12px 0;
+      }
+      fieldset legend {
+        font-size: 13px;
+        color: #555;
+        padding: 0 6px;
+      }
+      .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 4px 14px;
+      }
+      .checkbox-grid label {
+        font-weight: normal;
+        min-width: 0;
+      }
+      #status {
+        background: #f5f5f5;
+        padding: 10px;
+        border: 1px solid #ddd;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+        min-height: 60px;
+      }
+      #benchTable {
+        border-collapse: collapse;
+        font-size: 12px;
+        margin-top: 12px;
+        width: 100%;
+      }
+      #benchTable th,
+      #benchTable td {
+        border: 1px solid #ccc;
+        padding: 4px 8px;
+        text-align: right;
+      }
+      #benchTable th {
+        background: #f5f5f5;
+      }
+      #benchTable td.pattern-col,
+      #benchTable th.pattern-col {
+        text-align: left;
+        font-weight: bold;
+      }
+      #benchTable td.variant-col,
+      #benchTable th.variant-col {
+        text-align: left;
+      }
+      #benchChart {
+        margin-top: 16px;
+        background: #fafafa;
+        border: 1px solid #ddd;
+      }
+      #benchCsv {
+        width: 100%;
+        height: 140px;
+        margin-top: 10px;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 11px;
+      }
+      .warn { color: #a00; }
+      .ok { color: #070; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./mapreduce.html">MapReduce</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./farm.html">Farm</a> |
+      <a href="./pipeline.html">Pipeline</a> |
+      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
+      <a href="./imageConv.html">Image Convolution</a> |
+      <strong>Benchmarks</strong>
+    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <p>
+      Runs the paper-aligned heavy workloads (see Section 5.2) for each pattern across MP, Shared, and GPU variants.
+      Speedups are measured against a sequential JavaScript baseline (single-threaded, no workers, no
+      <code>SharedArrayBuffer</code>) on the same input size. Each measurement averages
+      <em>runs</em> timed iterations after <em>warmup</em> warmups.
+    </p>
+
+    <fieldset>
+      <legend>Patterns</legend>
+      <div class="row" style="margin-bottom:6px">
+        <button id="patternsAll" type="button">All</button>
+        <button id="patternsNone" type="button">None</button>
+      </div>
+      <div id="patternList" class="checkbox-grid"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Variants</legend>
+      <label><input type="checkbox" name="variant" value="mp" checked /> MP (Worker Threads)</label>
+      &nbsp;&nbsp;
+      <label><input type="checkbox" name="variant" value="shared" checked /> Shared (SharedArrayBuffer)</label>
+      &nbsp;&nbsp;
+      <label><input type="checkbox" name="variant" value="gpu" /> GPU (WebGPU) <span id="gpuStatus" style="font-size:12px;color:#666"></span></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Configuration</legend>
+      <div class="row">
+        <label for="sizes">Input sizes</label>
+        <input id="sizes" type="text" value="100000" style="width: 320px" />
+        <small style="color:#666">comma-separated; D&amp;C requires powers of two</small>
+      </div>
+      <div class="row">
+        <label for="threads">Thread counts</label>
+        <input id="threads" type="text" value="1,2,4,8" style="width: 320px" />
+        <small style="color:#666">applied to MP and Shared; GPU runs once</small>
+      </div>
+      <div class="row">
+        <label for="runs">Runs</label>
+        <input id="runs" type="number" min="1" max="50" value="3" style="width: 60px" />
+        <label for="warmup">Warmup</label>
+        <input id="warmup" type="number" min="0" max="20" value="1" style="width: 60px" />
+      </div>
+    </fieldset>
+
+    <div class="row">
+      <button id="runBtn">Run benchmarks</button>
+      <button id="cancelBtn" disabled>Stop</button>
+      <button id="downloadBtn" disabled>Download CSV</button>
+      <button id="clearBtn">Clear results</button>
+    </div>
+
+    <div id="status">Pick patterns and variants, then click "Run benchmarks".</div>
+
+    <h2 style="margin-top: 22px; font-size: 16px;">Speedup chart (per pattern, log y-axis)</h2>
+    <svg id="benchChart" width="1200" height="900" style="display:none"></svg>
+
+    <h2 style="margin-top: 22px; font-size: 16px;">Results table</h2>
+    <div id="benchTableWrap"></div>
+
+    <textarea id="benchCsv" placeholder="CSV results will appear here." readonly></textarea>
+
+    <script src="../browser-bench/gpu-bundle.js"></script>
+    <script type="module">
+      import { PATTERN_KEYS, PATTERNS, runBenchmarks, resultsToCSV, downloadCSV } from "./benchmarksRunner.js";
+
+      // ---------- DOM ----------
+      const patternListEl = document.getElementById("patternList");
+      const patternsAllBtn = document.getElementById("patternsAll");
+      const patternsNoneBtn = document.getElementById("patternsNone");
+      const sizesEl = document.getElementById("sizes");
+      const threadsEl = document.getElementById("threads");
+      const runsEl = document.getElementById("runs");
+      const warmupEl = document.getElementById("warmup");
+      const runBtn = document.getElementById("runBtn");
+      const cancelBtn = document.getElementById("cancelBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const statusEl = document.getElementById("status");
+      const tableWrapEl = document.getElementById("benchTableWrap");
+      const csvEl = document.getElementById("benchCsv");
+      const chartEl = document.getElementById("benchChart");
+      const gpuStatusEl = document.getElementById("gpuStatus");
+
+      // ---------- Pattern checkboxes ----------
+      for (const k of PATTERN_KEYS) {
+        const id = "pat-" + k;
+        const wrap = document.createElement("label");
+        wrap.innerHTML = `<input type="checkbox" name="pattern" value="${k}" id="${id}" checked /> ${PATTERNS[k].label}`;
+        patternListEl.appendChild(wrap);
+      }
+      patternsAllBtn.addEventListener("click", () => {
+        document.querySelectorAll("input[name=pattern]").forEach((c) => (c.checked = true));
+      });
+      patternsNoneBtn.addEventListener("click", () => {
+        document.querySelectorAll("input[name=pattern]").forEach((c) => (c.checked = false));
+      });
+
+      // ---------- GPU availability ----------
+      (async () => {
+        if (window.PW_GPU && (await window.PW_GPU.isGPUAvailable())) {
+          gpuStatusEl.textContent = "(detected)";
+          gpuStatusEl.classList.add("ok");
+        } else {
+          gpuStatusEl.textContent = "(unavailable in this browser)";
+          gpuStatusEl.classList.add("warn");
+        }
+      })();
+
+      // ---------- Run state ----------
+      let allResults = [];
+      let cancelled = false;
+
+      function log(msg) {
+        statusEl.textContent += msg + "\n";
+        statusEl.scrollTop = statusEl.scrollHeight;
+      }
+
+      function pickPatterns() {
+        return Array.from(document.querySelectorAll("input[name=pattern]:checked")).map((c) => c.value);
+      }
+      function pickVariants() {
+        return Array.from(document.querySelectorAll("input[name=variant]:checked")).map((c) => c.value);
+      }
+      function parseList(text) {
+        return text.split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0);
+      }
+
+      runBtn.addEventListener("click", async () => {
+        const patterns = pickPatterns();
+        const variants = pickVariants();
+        const sizes = parseList(sizesEl.value);
+        const threads = parseList(threadsEl.value);
+        const runs = Math.max(1, Number(runsEl.value) || 3);
+        const warmup = Math.max(0, Number(warmupEl.value) || 1);
+
+        if (!patterns.length) { alert("Select at least one pattern."); return; }
+        if (!variants.length) { alert("Select at least one variant."); return; }
+        if (!sizes.length)    { alert("Specify at least one size."); return; }
+        if (!threads.length && (variants.includes("mp") || variants.includes("shared"))) {
+          alert("Specify at least one thread count for MP/Shared.");
+          return;
+        }
+
+        runBtn.disabled = true;
+        cancelBtn.disabled = false;
+        downloadBtn.disabled = true;
+        cancelled = false;
+        statusEl.textContent = "";
+        log(`Running ${patterns.length} pattern(s) x ${variants.length} variant(s)`);
+        log(`Sizes: ${sizes.join(", ")} | Threads: ${threads.join(", ")} | Runs: ${runs} | Warmup: ${warmup}`);
+        const tStart = performance.now();
+
+        try {
+          const results = await runBenchmarks({
+            patterns, variants, sizes, threads, runs, warmup,
+            onProgress: (msg) => {
+              if (cancelled) throw new Error("Cancelled by user.");
+              if (msg.message) {
+                log(`  ${msg.pattern} ${msg.variant} size=${msg.size} ${msg.threads ?? ""}: ${msg.message}`);
+              } else {
+                log(`  ${msg.pattern.padEnd(18)} ${msg.variant.padEnd(7)} size=${String(msg.size).padStart(8)} ${("t=" + msg.threads).padEnd(5)} ${msg.time.toFixed(2).padStart(9)} ms  ${msg.speedup.toFixed(2).padStart(6)}x`);
+              }
+            },
+          });
+          allResults = allResults.concat(results);
+          const elapsed = (performance.now() - tStart) / 1000;
+          log(`\nDone. Total elapsed: ${elapsed.toFixed(1)} s.`);
+          renderResults(allResults);
+          downloadBtn.disabled = false;
+        } catch (e) {
+          log("ERROR: " + e.message);
+        } finally {
+          runBtn.disabled = false;
+          cancelBtn.disabled = true;
+        }
+      });
+
+      cancelBtn.addEventListener("click", () => {
+        cancelled = true;
+        log("Cancellation requested. Will stop after the current iteration.");
+      });
+
+      clearBtn.addEventListener("click", () => {
+        allResults = [];
+        statusEl.textContent = "Cleared. Pick patterns and variants, then click \"Run benchmarks\".";
+        tableWrapEl.innerHTML = "";
+        csvEl.value = "";
+        chartEl.innerHTML = "";
+        chartEl.style.display = "none";
+        downloadBtn.disabled = true;
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        const csv = resultsToCSV(allResults);
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        downloadCSV(`paraweb-bench-${stamp}.csv`, csv);
+      });
+
+      // ---------- Rendering ----------
+      function renderResults(rows) {
+        const csv = resultsToCSV(rows);
+        csvEl.value = csv;
+        renderTable(rows);
+        renderChart(rows);
+      }
+
+      function renderTable(rows) {
+        // Group by pattern, variant, size; one row per (pattern, variant, size, threads).
+        const byKey = new Map();
+        for (const r of rows) {
+          const key = `${r.pattern}|${r.variant}|${r.size}|${r.threads}`;
+          byKey.set(key, r);
+        }
+        const sortedKeys = Array.from(byKey.keys()).sort();
+        let html = `<table id="benchTable"><thead><tr>
+          <th class="pattern-col">Pattern</th>
+          <th class="variant-col">Variant</th>
+          <th>Size</th>
+          <th>Threads</th>
+          <th>Time (ms)</th>
+          <th>Speedup</th>
+        </tr></thead><tbody>`;
+        for (const k of sortedKeys) {
+          const r = byKey.get(k);
+          html += `<tr>
+            <td class="pattern-col">${r.pattern}</td>
+            <td class="variant-col">${r.variant}</td>
+            <td>${r.size}</td>
+            <td>${r.threads}</td>
+            <td>${r.time.toFixed(2)}</td>
+            <td>${r.speedup.toFixed(2)}x</td>
+          </tr>`;
+        }
+        html += `</tbody></table>`;
+        tableWrapEl.innerHTML = html;
+      }
+
+      // ---------- SVG chart ----------
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      function svgEl(tag, attrs) {
+        const e = document.createElementNS(SVG_NS, tag);
+        for (const k in attrs) e.setAttribute(k, attrs[k]);
+        return e;
+      }
+      const VARIANT_COLOR = { mp: "#1f77b4", shared: "#d62728", gpu: "#2ca02c" };
+      const VARIANT_LABEL = { mp: "MP", shared: "Shared", gpu: "GPU" };
+
+      function logCeiling(v) {
+        if (v <= 1) return 1;
+        const exp = Math.floor(Math.log10(v));
+        const base = Math.pow(10, exp);
+        for (const m of [1, 2, 5, 10]) {
+          if (v <= base * m + 1e-9) return base * m;
+        }
+        return base * 10;
+      }
+
+      function logTicks(maxY) {
+        const ticks = [];
+        const maxExp = Math.ceil(Math.log10(maxY));
+        for (let e = 0; e <= maxExp; e++) {
+          const base = Math.pow(10, e);
+          for (const m of [1, 2, 5]) {
+            const v = base * m;
+            if (v <= maxY * 1.05) ticks.push(v);
+          }
+        }
+        return ticks;
+      }
+
+      function renderChart(rows) {
+        chartEl.innerHTML = "";
+        const variants = Array.from(new Set(rows.filter(r => r.variant !== "seq").map(r => r.variant)));
+        if (!variants.length) { chartEl.style.display = "none"; return; }
+        chartEl.style.display = "block";
+
+        // For each pattern that has data, draw a small panel with x=threads,
+        // y=speedup (log scale), one line per variant. Pick the largest size
+        // available so the chart is not crowded; tooltip already covers detail.
+        const patternsWithData = Array.from(new Set(rows.filter(r => r.variant !== "seq").map(r => r.pattern)));
+        if (!patternsWithData.length) { chartEl.style.display = "none"; return; }
+
+        // Layout: up to 5 columns, multi-row grid.
+        const cols = Math.min(5, patternsWithData.length);
+        const numRows = Math.ceil(patternsWithData.length / cols);
+        const W = 1200;
+        const H = 200 * numRows + 90;
+        chartEl.setAttribute("height", String(H));
+        const PAD_L = 56, PAD_R = 16, PAD_T = 30, PAD_B = 60;
+        const plotW = W - PAD_L - PAD_R;
+        const plotH = H - PAD_T - PAD_B;
+        const panelGap = 18;
+        const panelW = (plotW - panelGap * (cols - 1)) / cols;
+        const panelH = (plotH - panelGap * (numRows - 1)) / numRows;
+
+        const speedups = rows.filter(r => r.variant !== "seq").map(r => r.speedup);
+        const yMax = logCeiling(Math.max(...speedups, 2) * 1.05);
+        const logMin = Math.log10(1);
+        const logMax = Math.log10(yMax);
+        const logRange = logMax - logMin || 1;
+
+        const yLabel = svgEl("text", {
+          x: 14, y: PAD_T + plotH / 2,
+          transform: `rotate(-90 14 ${PAD_T + plotH / 2})`,
+          "text-anchor": "middle", "font-size": "12", fill: "#333",
+        });
+        yLabel.textContent = "Speedup vs Sequential (log scale)";
+        chartEl.appendChild(yLabel);
+
+        const allThreads = Array.from(new Set(rows.filter(r => r.variant !== "seq").map(r => r.threads))).sort((a, b) => a - b);
+
+        patternsWithData.forEach((pat, pi) => {
+          const col = pi % cols;
+          const row = Math.floor(pi / cols);
+          const px = PAD_L + col * (panelW + panelGap);
+          const py = PAD_T + row * (panelH + panelGap);
+
+          chartEl.appendChild(svgEl("rect", { x: px, y: py, width: panelW, height: panelH, fill: "#fff", stroke: "#ccc" }));
+
+          const title = svgEl("text", { x: px + panelW / 2, y: py - 6, "text-anchor": "middle", "font-size": "13", fill: "#333", "font-weight": "bold" });
+          title.textContent = pat;
+          chartEl.appendChild(title);
+
+          // Y gridlines
+          const yToPx = (v) => py + panelH - ((Math.log10(Math.max(1, v)) - logMin) / logRange) * panelH;
+          for (const t of logTicks(yMax)) {
+            const y = yToPx(t);
+            chartEl.appendChild(svgEl("line", { x1: px, y1: y, x2: px + panelW, y2: y, stroke: "#eee", "stroke-width": "1" }));
+            const lbl = svgEl("text", { x: px - 5, y: y + 3, "text-anchor": "end", "font-size": "10", fill: "#666" });
+            lbl.textContent = t + "x";
+            chartEl.appendChild(lbl);
+          }
+
+          // X axis: thread counts.
+          const xToPx = (t) => {
+            const i = allThreads.indexOf(t);
+            if (i < 0) return px;
+            return px + 12 + i * ((panelW - 24) / Math.max(1, allThreads.length - 1));
+          };
+          for (const t of allThreads) {
+            const x = xToPx(t);
+            chartEl.appendChild(svgEl("line", { x1: x, y1: py, x2: x, y2: py + panelH, stroke: "#f5f5f5" }));
+            const lbl = svgEl("text", { x, y: py + panelH + 14, "text-anchor": "middle", "font-size": "10", fill: "#666" });
+            lbl.textContent = String(t);
+            chartEl.appendChild(lbl);
+          }
+
+          // Lines per variant.
+          for (const v of variants) {
+            const seriesRows = rows.filter(r => r.pattern === pat && r.variant === v).sort((a, b) => a.threads - b.threads);
+            if (!seriesRows.length) continue;
+            // For GPU (single point), draw a horizontal reference line + dot at the GPU speedup.
+            if (v === "gpu") {
+              const r = seriesRows[0];
+              const y = yToPx(r.speedup);
+              chartEl.appendChild(svgEl("line", { x1: px, y1: y, x2: px + panelW, y2: y, stroke: VARIANT_COLOR.gpu, "stroke-width": "1.5", "stroke-dasharray": "5 4" }));
+              chartEl.appendChild(svgEl("circle", { cx: px + panelW - 6, cy: y, r: "3", fill: VARIANT_COLOR.gpu }));
+              continue;
+            }
+            const points = seriesRows.map(r => `${xToPx(r.threads)},${yToPx(r.speedup)}`).join(" ");
+            chartEl.appendChild(svgEl("polyline", { points, fill: "none", stroke: VARIANT_COLOR[v], "stroke-width": "2" }));
+            for (const r of seriesRows) {
+              chartEl.appendChild(svgEl("circle", { cx: xToPx(r.threads), cy: yToPx(r.speedup), r: "3", fill: VARIANT_COLOR[v] }));
+            }
+          }
+        });
+
+        // Legend
+        const legendY = H - 28;
+        let lx = PAD_L;
+        for (const v of variants) {
+          const sw = svgEl("line", { x1: lx, y1: legendY, x2: lx + 22, y2: legendY, stroke: VARIANT_COLOR[v], "stroke-width": "2", "stroke-dasharray": v === "gpu" ? "5 4" : "" });
+          chartEl.appendChild(sw);
+          const txt = svgEl("text", { x: lx + 28, y: legendY + 4, "font-size": "12", fill: "#333" });
+          txt.textContent = VARIANT_LABEL[v];
+          chartEl.appendChild(txt);
+          lx += 90;
+        }
+        const xAxisLabel = svgEl("text", { x: PAD_L + plotW / 2, y: H - 6, "text-anchor": "middle", "font-size": "12", fill: "#333" });
+        xAxisLabel.textContent = "Threads (CPU variants); GPU is a single dispatch shown as a dashed line";
+        chartEl.appendChild(xAxisLabel);
+      }
+    </script>
+  </body>
+</html>

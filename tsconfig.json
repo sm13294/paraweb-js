@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", // Target latest ECMAScript features.
+    "module": "commonjs", // Use CommonJS module system for Node.js.
+    "strict": true, // Enable strict type checking.
+    "esModuleInterop": true, // Enable ES6 module interoperability.
+    "skipLibCheck": true, // Skip type checking of declaration files.
+    "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
+    "moduleResolution": "node", // Use Node.js module resolution strategy.
+    "outDir": "./dist", // Output directory for compiled files.
+    "declaration": true, // Generate corresponding .d.ts file for the library.
+    "removeComments": true, // Remove comments from the output files.
+    "sourceMap": true, // Generate source maps.
+    "types": ["node", "@webgpu/types"] // Include WebGPU types.
+  },
+  "include": [
+    "src/**/*.ts" // Source files to be compiled.
+  ],
+  "exclude": [
+    "node_modules" // Exclude node_modules.
+  ]
+}

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Scatter Browser Demo</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      input, button, select {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      .output {
+        white-space: pre-wrap;
+        background: #f5f5f5;
+        padding: 12px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ParaWeb Browser Demos</h1>
+    <div class="row">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./accumulator.html">Accumulator</a> |
+      <a href="./mapreduce.html">MapReduce</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./farm.html">Farm</a> |
+      <a href="./pipeline.html">Pipeline</a> |
+      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
+      <a href="./benchmarks.html">Benchmarks</a>
+    </div>
+    <h2>Scatter (Browser Worker) Demo</h2>
+    <div class="row">
+      <label for="size">Input size</label>
+      <input id="size" type="number" min="1" value="100000" />
+      <label for="max">Max value</label>
+      <input id="max" type="number" min="1" value="1000" />
+    </div>
+    <div class="row">
+      <label for="workloadSelect">Per-element workload</label>
+      <select id="workloadSelect">
+        <option value="trig50" selected>Heavy: 50-iteration trig+poly (paper benchmark)</option>
+        <option value="identity">None (identity)</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="fnSelect">Conflict resolution</label>
+      <select id="fnSelect">
+        <option value="last">Last wins</option>
+        <option value="sum">Sum collisions</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="variantSelect">Variant</label>
+      <select id="variantSelect">
+        <option value="mp" selected>MP (Worker Threads, postMessage)</option>
+        <option value="shared">Shared (SharedArrayBuffer)</option>
+        <option value="gpu">GPU (WebGPU compute shader)</option>
+      </select>
+      <label for="threads">Threads</label>
+      <input id="threads" type="number" min="1" value="4" />
+      <button id="run">Run</button>
+    </div>
+    <div class="row">
+      <strong>Output</strong>
+      <div id="output" class="output"></div>
+    </div>
+    <script src="../browser-bench/gpu-bundle.js"></script>
+    <script type="module">
+      import { ScatterBrowser } from "./scatterBrowser.js";
+      import { ScatterSharedBrowser } from "./scatterSharedBrowser.js";
+
+      const scatterMP = new ScatterBrowser();
+      const scatterShared = new ScatterSharedBrowser();
+      const variantSelectEl = document.getElementById("variantSelect");
+
+      // GPU Scatter: built-in preOp name (or custom WGSL) for the per-element transform.
+      const gpuPreOpMap = {
+        trig50: "trig_scan_50",
+        identity: undefined,
+      };
+      const sizeEl = document.getElementById("size");
+      const maxEl = document.getElementById("max");
+      const fnSelectEl = document.getElementById("fnSelect");
+      const workloadSelectEl = document.getElementById("workloadSelect");
+      const threadsEl = document.getElementById("threads");
+      const outputEl = document.getElementById("output");
+      const runBtn = document.getElementById("run");
+
+      // 50-iteration trig+poly per-element transform; matches the Scatter
+      // workload reported in the paper (Section 5.2).
+      const workloadMap = {
+        trig50: (x) => {
+          let v = x;
+          for (let k = 0; k < 50; k++) {
+            v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+            v = v * v + 1;
+          }
+          return v;
+        },
+        identity: undefined,
+      };
+
+      runBtn.addEventListener("click", async () => {
+        outputEl.textContent = "Running...";
+        const size = Math.max(1, Number(sizeEl.value) || 1);
+        const maxVal = Math.max(1, Number(maxEl.value) || 1000);
+        const input = Array.from({ length: size }, () =>
+          Math.floor(Math.random() * maxVal)
+        );
+        const indexData = Array.from({ length: size }, () =>
+          Math.floor(Math.random() * Math.max(1, size / 4))
+        );
+
+        const conflictFn = fnSelectEl.value === "sum"
+          ? (a, b) => a + b
+          : undefined;
+        const workloadKey = workloadSelectEl.value;
+        const mapFn = workloadMap[workloadKey];
+        const threads = Number(threadsEl.value) || undefined;
+        const variant = variantSelectEl.value;
+
+        const start = performance.now();
+        try {
+          let result;
+          if (variant === "gpu") {
+            if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
+              throw new Error("WebGPU is not available in this browser/context.");
+            }
+            // GPU Scatter uses last-write-wins; the conflict-resolution selector
+            // is a CPU-only knob here, so we ignore it on the GPU path.
+            const preOp = gpuPreOpMap[workloadKey];
+            result = await new window.PW_GPU.Scatter().scatter(input, indexData, undefined, 0, preOp);
+          } else if (variant === "shared") {
+            result = await scatterShared.scatter(input, indexData, 0, conflictFn, threads, mapFn);
+          } else {
+            result = await scatterMP.scatter(input, indexData, 0, conflictFn, threads, mapFn);
+          }
+          const elapsed = performance.now() - start;
+          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          outputEl.textContent =
+            `Output length: ${result.length}\n` +
+            `Sample: ${sample}\n` +
+            `Time: ${elapsed.toFixed(2)}ms`;
+        } catch (error) {
+          outputEl.textContent = "Error: " + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

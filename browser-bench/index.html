@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ParaWeb Browser Benchmarks</title>
+</head>
+<body>
+  <h1>ParaWeb Browser Benchmarks</h1>
+  <p>Ready. Call <code>window.runBench(config)</code> programmatically to run.</p>
+  <pre id="log" style="background:#f5f5f5;padding:12px;border:1px solid #ddd;max-height:400px;overflow:auto"></pre>
+
+  <script type="module">
+    import { MapBrowser }               from "../browser-demo/mapBrowser.js";
+    import { FilterBrowser }            from "../browser-demo/filterBrowser.js";
+    import { ReduceBrowser }            from "../browser-demo/reduceBrowser.js";
+    import { ScanBrowser }              from "../browser-demo/scanBrowser.js";
+    import { MapReduceBrowser }         from "../browser-demo/mapReduceBrowser.js";
+    import { ScatterBrowser }           from "../browser-demo/scatterBrowser.js";
+    import { StencilBrowser }           from "../browser-demo/stencilBrowser.js";
+    import { FarmBrowser }              from "../browser-demo/farmBrowser.js";
+    import { PipelineBrowser }          from "../browser-demo/pipelineBrowser.js";
+    import { DivideAndConquerBrowser }  from "../browser-demo/divideAndConquerBrowser.js";
+    import { MapSharedBrowser }               from "../browser-demo/mapSharedBrowser.js";
+    import { FilterSharedBrowser }            from "../browser-demo/filterSharedBrowser.js";
+    import { ReduceSharedBrowser }            from "../browser-demo/reduceSharedBrowser.js";
+    import { ScanSharedBrowser }              from "../browser-demo/scanSharedBrowser.js";
+    import { MapReduceSharedBrowser }         from "../browser-demo/mapReduceSharedBrowser.js";
+    import { ScatterSharedBrowser }           from "../browser-demo/scatterSharedBrowser.js";
+    import { StencilSharedBrowser }           from "../browser-demo/stencilSharedBrowser.js";
+    import { FarmSharedBrowser }              from "../browser-demo/farmSharedBrowser.js";
+    import { PipelineSharedBrowser }          from "../browser-demo/pipelineSharedBrowser.js";
+    import { DivideAndConquerSharedBrowser }  from "../browser-demo/divideAndConquerSharedBrowser.js";
+
+    // Workloads copied verbatim from src/test/test*Shared.ts for methodological parity.
+    const mapFn = (x) => {
+      let result = x;
+      for (let i = 0; i < 50; i++) {
+        result = Math.sin(result) * Math.cos(result * 0.5) + Math.sqrt(Math.abs(result) + 1);
+        result = result * result - Math.floor(result * result);
+      }
+      return result;
+    };
+    const filterFn = (x) => {
+      let val = x;
+      for (let i = 0; i < 30; i++) {
+        val = Math.sin(val) * Math.cos(val * 0.5) + Math.sqrt(Math.abs(val) + 1);
+      }
+      return val > 2.0;
+    };
+    // Pure associative sum; Reduce combine re-applies fn to partial sums, so
+    // fn must be associative. Fused map+reduce lives in the MapReduce test.
+    const reduceFn = (acc, x) => acc + x;
+    // Collatz step count drives mild per-task cost variance; the trailing
+    // 200-iteration trig refinement raises absolute per-task cost from
+    // microseconds to ~milliseconds so worker coordination amortizes.
+    const farmCollatz = (n) => {
+      let steps = 0, num = n;
+      while (num !== 1) {
+        num = num % 2 === 0 ? num / 2 : 3 * num + 1;
+        steps++;
+        if (steps > 10000) break;
+      }
+      let v = steps;
+      for (let i = 0; i < 200; i++) {
+        v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+        v = v * v - Math.floor(v * v) + 1;
+      }
+      return v;
+    };
+    const stencilFn = (val, neighbors, stencil) => {
+      let result = 0;
+      for (let i = 0; i < neighbors.length; i++) {
+        result += (neighbors[i] || 0) * stencil[i];
+      }
+      for (let iter = 0; iter < 15; iter++) {
+        result = Math.sin(result * 0.01) * 100 + Math.cos(result * 0.01) * 50;
+        result = Math.sqrt(Math.abs(result) + 1);
+      }
+      return result;
+    };
+    const pipelineStage1 = (x) => {
+      let result = x;
+      for (let i = 0; i < 30; i++) {
+        result = Math.sin(result) * Math.cos(result * 0.5) + Math.sqrt(Math.abs(result) + 1);
+      }
+      return result;
+    };
+    const pipelineStage2 = (x) => {
+      let result = x;
+      for (let i = 0; i < 20; i++) {
+        result = (result * result - Math.floor(result * result)) * 3.14159 + 1;
+      }
+      return Math.round(result * 1000) / 1000;
+    };
+
+    const log = (msg) => { const el = document.getElementById("log"); el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight; };
+
+    const now = () => performance.now();
+
+    async function timeIt(fn, runs, warmup) {
+      for (let i = 0; i < warmup; i++) await fn();
+      let total = 0;
+      for (let i = 0; i < runs; i++) {
+        const t0 = now();
+        await fn();
+        total += now() - t0;
+      }
+      return total / runs;
+    }
+
+    function seededInput(size, maxVal) {
+      // Simple deterministic generator for reproducibility across runs.
+      const arr = new Array(size);
+      let s = 42;
+      for (let i = 0; i < size; i++) { s = (s * 1103515245 + 12345) & 0x7fffffff; arr[i] = (s % maxVal) + 1; }
+      return arr;
+    }
+
+    const __inputCache = new Map();
+    function __getCachedInput(key, factory) {
+      let v = __inputCache.get(key);
+      if (v === undefined) { v = factory(); __inputCache.set(key, v); }
+      return v;
+    }
+
+    async function runOne(pattern, variant, size, threads, runs, warmup) {
+      const mp = {
+        map: new MapBrowser(), filter: new FilterBrowser(), reduce: new ReduceBrowser(), scan: new ScanBrowser(),
+        mapreduce: new MapReduceBrowser(), scatter: new ScatterBrowser(), stencil: new StencilBrowser(),
+        farm: new FarmBrowser(), pipeline: new PipelineBrowser(), dac: new DivideAndConquerBrowser(),
+      };
+      const sh = {
+        map: new MapSharedBrowser(), filter: new FilterSharedBrowser(), reduce: new ReduceSharedBrowser(), scan: new ScanSharedBrowser(),
+        mapreduce: new MapReduceSharedBrowser(), scatter: new ScatterSharedBrowser(), stencil: new StencilSharedBrowser(),
+        farm: new FarmSharedBrowser(), pipeline: new PipelineSharedBrowser(), dac: new DivideAndConquerSharedBrowser(),
+      };
+      const p = variant === "shared" ? sh : mp;
+      // Inputs cached per (pattern,size) so thread-count sweeps reuse the same array.
+      const modInput = (mod, offset) => {
+        const arr = new Array(size);
+        for (let i = 0; i < size; i++) arr[i] = (i % mod) + offset;
+        return arr;
+      };
+
+      // Plain-JS sequential baselines (no workers, no SAB). Used when
+      // variant === "seq" so that parallel speedups are computed against a
+      // fair sequential baseline rather than the parallel-1T time.
+      if (variant === "seq") {
+        switch (pattern) {
+          case "Map": {
+            const input = __getCachedInput("Map:" + size, () => modInput(1000, 1));
+            return timeIt(() => {
+              const out = new Array(input.length);
+              for (let i = 0; i < input.length; i++) out[i] = mapFn(input[i]);
+              return out;
+            }, runs, warmup);
+          }
+          case "Filter": {
+            const input = __getCachedInput("Filter:" + size, () => modInput(1000, 1));
+            return timeIt(() => {
+              const out = [];
+              for (let i = 0; i < input.length; i++) if (filterFn(input[i])) out.push(input[i]);
+              return out;
+            }, runs, warmup);
+          }
+          case "Reduce": {
+            const input = __getCachedInput("Reduce:" + size, () => modInput(100, 1));
+            const lightFn = (x) => { let v = x; for (let k = 0; k < 10; k++) { v = Math.sin(v) + Math.cos(v * 0.5); } return v; };
+            return timeIt(() => { let acc = 0; for (let i = 0; i < input.length; i++) acc += lightFn(input[i]); return acc; }, runs, warmup);
+          }
+          case "Scan": {
+            const input = __getCachedInput("Scan:" + size, () => modInput(100, 1));
+            const scanHeavyFn = (x) => { let v = x; for (let k = 0; k < 50; k++) { v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1); v = v * v + 1; } return v; };
+            return timeIt(() => {
+              const out = new Array(input.length); let acc = 0;
+              for (let i = 0; i < input.length; i++) { acc += scanHeavyFn(input[i]); out[i] = acc; }
+              return out;
+            }, runs, warmup);
+          }
+          case "MapReduce": {
+            const input = __getCachedInput("MapReduce:" + size, () => modInput(1000, 1));
+            return timeIt(() => { let acc = 0; for (let i = 0; i < input.length; i++) acc += mapFn(input[i]); return acc; }, runs, warmup);
+          }
+          case "Scatter": {
+            const input = __getCachedInput("Scatter:input:" + size, () => seededInput(size, 1000));
+            const indices = __getCachedInput("Scatter:indices:" + size, () => seededInput(size, Math.floor(size / 4)));
+            const heavyFn = (x) => { let v = x; for (let k = 0; k < 50; k++) { v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1); v = v * v + 1; } return v; };
+            return timeIt(() => {
+              let maxIdx = 0;
+              for (let i = 0; i < indices.length; i++) if (indices[i] > maxIdx) maxIdx = indices[i];
+              const out = new Array(maxIdx + 1).fill(0);
+              const lastWriter = new Int32Array(maxIdx + 1).fill(-1);
+              for (let i = 0; i < input.length; i++) {
+                const idx = indices[i];
+                if (i > lastWriter[idx]) { out[idx] = heavyFn(input[i]); lastWriter[idx] = i; }
+              }
+              return out;
+            }, runs, warmup);
+          }
+          case "Stencil": {
+            const input = __getCachedInput("Stencil:" + size, () => modInput(100, 1));
+            const stencil = [1, 2, 3, 2, 1];
+            return timeIt(() => {
+              const out = new Array(input.length);
+              for (let i = 0; i < input.length; i++) {
+                let result = 0;
+                for (let k = -2; k <= 2; k++) {
+                  const idx = i + k;
+                  const v = idx >= 0 && idx < input.length ? input[idx] : 0;
+                  result += v * stencil[k + 2];
+                }
+                for (let iter = 0; iter < 15; iter++) {
+                  result = Math.sin(result * 0.01) * 100 + Math.cos(result * 0.01) * 50;
+                  result = Math.sqrt(Math.abs(result) + 1);
+                }
+                out[i] = result;
+              }
+              return out;
+            }, runs, warmup);
+          }
+          case "Farm": {
+            const input = __getCachedInput("Farm:" + size, () => modInput(1000, 1000));
+            return timeIt(() => {
+              const out = new Array(input.length);
+              for (let i = 0; i < input.length; i++) out[i] = farmCollatz(input[i]);
+              return out;
+            }, runs, warmup);
+          }
+          case "Pipeline": {
+            const input = __getCachedInput("Pipeline:" + size, () => modInput(1000, 1));
+            return timeIt(() => {
+              const out = new Array(input.length);
+              for (let i = 0; i < input.length; i++) out[i] = pipelineStage2(pipelineStage1(input[i]));
+              return out;
+            }, runs, warmup);
+          }
+          case "DivideAndConquer": {
+            // Sequential Cooley-Tukey radix-2 FFT — same algorithm as the
+            // parallel CPU/GPU paths, just no workers.
+            const input = __getCachedInput("DAC:fft-input:" + size, () => {
+              const buf = new Float64Array(2 * size);
+              for (let i = 0; i < size; i++) buf[2 * i] = Math.sin(i * 0.001) + Math.cos(i * 0.0005);
+              return buf;
+            });
+            return timeIt(() => {
+              const data = new Float64Array(input);
+              const N = data.length / 2;
+              const bits = Math.log2(N) | 0;
+              // Bit-reversal permutation
+              for (let i = 0; i < N; i++) {
+                let r = 0, x = i;
+                for (let b = 0; b < bits; b++) { r = (r << 1) | (x & 1); x >>>= 1; }
+                if (r > i) {
+                  const ar = data[2 * i], ai = data[2 * i + 1];
+                  data[2 * i]     = data[2 * r];     data[2 * i + 1] = data[2 * r + 1];
+                  data[2 * r]     = ar;               data[2 * r + 1] = ai;
+                }
+              }
+              for (let s = 1; s <= bits; s++) {
+                const m = 1 << s, half = m >> 1, angleStep = -2 * Math.PI / m;
+                for (let k = 0; k < N; k += m) {
+                  for (let j = 0; j < half; j++) {
+                    const wRe = Math.cos(angleStep * j), wIm = Math.sin(angleStep * j);
+                    const oRe = data[2 * (k + j + half)], oIm = data[2 * (k + j + half) + 1];
+                    const tRe = wRe * oRe - wIm * oIm, tIm = wRe * oIm + wIm * oRe;
+                    const eRe = data[2 * (k + j)],       eIm = data[2 * (k + j) + 1];
+                    data[2 * (k + j + half)]     = eRe - tRe;
+                    data[2 * (k + j + half) + 1] = eIm - tIm;
+                    data[2 * (k + j)]            = eRe + tRe;
+                    data[2 * (k + j) + 1]        = eIm + tIm;
+                  }
+                }
+              }
+              return data;
+            }, runs, warmup);
+          }
+          default: throw new Error("Unknown pattern for sequential: " + pattern);
+        }
+      }
+
+      switch (pattern) {
+        case "Map": {
+          const input = __getCachedInput("Map:" + size, () => modInput(1000, 1));
+          return timeIt(() => p.map.map(mapFn, input, threads), runs, warmup);
+        }
+        case "Filter": {
+          const input = __getCachedInput("Filter:" + size, () => modInput(1000, 1));
+          return timeIt(() => p.filter.filter(filterFn, input, threads), runs, warmup);
+        }
+        case "Reduce": {
+          const input = __getCachedInput("Reduce:" + size, () => modInput(100, 1));
+          const reduceLightFn = (x) => { let v = x; for (let k = 0; k < 10; k++) { v = Math.sin(v) + Math.cos(v * 0.5); } return v; };
+          return timeIt(() => p.reduce.reduce(reduceFn, input, 0, threads, reduceLightFn), runs, warmup);
+        }
+        case "Scan": {
+          const input = __getCachedInput("Scan:" + size, () => modInput(100, 1));
+          // Heavy per-element transform (matches Map's 50-iteration trig).
+          const scanHeavyFn = (x) => { let v = x; for (let k = 0; k < 50; k++) { v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1); v = v * v + 1; } return v; };
+          return timeIt(() => p.scan.scan((a, b) => a + b, input, 0, threads, scanHeavyFn), runs, warmup);
+        }
+        case "MapReduce": {
+          const input = __getCachedInput("MapReduce:" + size, () => modInput(1000, 1));
+          return timeIt(() => p.mapreduce.mapReduce(mapFn, (a,b)=>a+b, input, threads), runs, warmup);
+        }
+        case "Scatter": {
+          // Mirrors Node: seedrandom-seeded inputs and indices (0..size/4).
+          // No conflictFn — last-write-wins semantics keep the shared path
+          // active (no fallback to MP). Heavy per-element transform matches Map.
+          const input = __getCachedInput("Scatter:input:" + size, () => seededInput(size, 1000));
+          const indices = __getCachedInput("Scatter:indices:" + size, () => seededInput(size, Math.floor(size / 4)));
+          const heavyFn = (x) => { let v = x; for (let k = 0; k < 50; k++) { v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1); v = v * v + 1; } return v; };
+          return timeIt(() => p.scatter.scatter(input, indices, 0, null, threads, heavyFn), runs, warmup);
+        }
+        case "Stencil": {
+          const input = __getCachedInput("Stencil:" + size, () => modInput(100, 1));
+          return timeIt(() => p.stencil.stencil(stencilFn, input, [1,2,3,2,1], threads), runs, warmup);
+        }
+        case "Farm": {
+          const input = __getCachedInput("Farm:" + size, () => modInput(1000, 1000));
+          return timeIt(() => p.farm.farm(farmCollatz, input, threads), runs, warmup);
+        }
+        case "Pipeline": {
+          const input = __getCachedInput("Pipeline:" + size, () => modInput(1000, 1));
+          return timeIt(() => p.pipeline.pipeline([pipelineStage1, pipelineStage2], input, threads), runs, warmup);
+        }
+        case "DivideAndConquer": {
+          // Parallel Cooley-Tukey FFT — same algorithm on MP and Shared.
+          const input = __getCachedInput("DAC:fft-input:" + size, () => {
+            const buf = new Float64Array(2 * size);
+            for (let i = 0; i < size; i++) buf[2 * i] = Math.sin(i * 0.001) + Math.cos(i * 0.0005);
+            return buf;
+          });
+          return timeIt(() => p.dac.fft(input, threads), runs, warmup);
+        }
+        default: throw new Error("Unknown pattern: " + pattern);
+      }
+    }
+
+    window.runBench = async function runBench(config) {
+      const patterns  = config.patterns  || ["Map","Filter","Reduce","Scan","Scatter","Stencil","Farm","Pipeline","DivideAndConquer","MapReduce"];
+      const variants  = config.variants  || ["mp","shared"];
+      const sizes     = config.sizes     || [10000000];
+      const threads   = config.threads   || [1,2,4,8,16];
+      const runs      = config.runs      || 3;
+      const warmup    = config.warmup    || 1;
+      const results = [];
+      for (const pattern of patterns) {
+        for (const variant of variants) {
+          for (const size of sizes) {
+            for (const t of threads) {
+              const time = await runOne(pattern, variant, size, t, runs, warmup);
+              const row = { pattern, variant, size, threads: t, time };
+              results.push(row);
+              log(`${pattern.padEnd(18)} ${variant.padEnd(7)} size=${size} t=${t}: ${time.toFixed(2)}ms`);
+            }
+          }
+        }
+      }
+      return results;
+    };
+    log("ready");
+  </script>
+</body>
+</html>

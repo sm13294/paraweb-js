@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Image Convolution Demo</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+        max-width: 1400px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      .row label {
+        display: inline-block;
+        min-width: 110px;
+      }
+      input, button, select {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      .canvases {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .canvas-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .canvas-wrap strong {
+        margin-bottom: 4px;
+      }
+      canvas {
+        border: 1px solid #ccc;
+        max-width: 640px;
+        height: auto;
+        image-rendering: pixelated;
+      }
+      #status {
+        background: #f5f5f5;
+        padding: 10px;
+        border: 1px solid #ddd;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        min-height: 60px;
+      }
+      .warn { color: #a00; }
+      .ok   { color: #070; }
+
+      /* benchmark panel */
+      #benchPanel {
+        margin-top: 28px;
+        padding-top: 16px;
+        border-top: 2px solid #ddd;
+      }
+      #benchPanel h2 {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+      }
+      #benchProgress {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 13px;
+        color: #555;
+        margin: 8px 0;
+        min-height: 1em;
+      }
+      #benchResultsTable {
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 8px;
+      }
+      #benchResultsTable th,
+      #benchResultsTable td {
+        border: 1px solid #ccc;
+        padding: 4px 8px;
+        text-align: right;
+      }
+      #benchResultsTable th {
+        background: #f5f5f5;
+      }
+      #benchResultsTable td.filter-col,
+      #benchResultsTable th.filter-col {
+        text-align: left;
+        font-weight: bold;
+      }
+      #benchChart {
+        margin-top: 16px;
+        background: #fafafa;
+        border: 1px solid #ddd;
+      }
+      #benchCsv {
+        width: 100%;
+        height: 120px;
+        margin-top: 8px;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ParaWeb: Interactive Image Convolution</h1>
+    <div class="row">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./imageConv.html"><strong>Image Convolution</strong></a> |
+      <a href="./benchmarks.html">Benchmarks</a>
+    </div>
+    <p>
+      Applies a separable Gaussian blur with a chosen kernel radius to the loaded image.
+      Pick a variant, drag the slider, and watch the output update in real time. All
+      computation runs client-side: no pixels leave the browser.
+    </p>
+
+    <div class="row">
+      <label for="imgFile">Image</label>
+      <input id="imgFile" type="file" accept="image/*" />
+      <button id="loadSample">Load sample (1024x1024)</button>
+      <button id="loadSampleLarge">Load sample (2048x2048)</button>
+      <button id="loadSample4K">Load sample (4K: 3840x2160)</button>
+    </div>
+
+    <div class="row">
+      <label for="filter">Filter</label>
+      <select id="filter">
+        <option value="gaussian" selected>Gaussian blur (separable)</option>
+        <option value="box">Box blur (separable)</option>
+        <option value="sharpen">Sharpen (3x3)</option>
+        <option value="emboss">Emboss (3x3)</option>
+        <option value="edge">Edge detect / Laplacian (3x3)</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label for="variant">Variant</label>
+      <select id="variant">
+        <option value="seq">Sequential</option>
+        <option value="shared-4">CPU Shared, 4 threads</option>
+        <option value="shared-8" selected>CPU Shared, 8 threads</option>
+        <option value="shared-16">CPU Shared, 16 threads</option>
+        <option value="gpu">GPU (WebGPU)</option>
+      </select>
+      <span id="gpuStatus"></span>
+    </div>
+
+    <div class="row">
+      <label id="radiusLabelText" for="radius">Kernel radius</label>
+      <input id="radius" type="range" min="1" max="20" value="2" step="1" style="width: 360px; vertical-align: middle;" />
+      <span id="radiusLabel">2 (5x5, sigma=1.0)</span>
+    </div>
+
+    <div class="row">
+      <label>&nbsp;</label>
+      <label><input id="liveUpdate" type="checkbox" checked /> live update while dragging</label>
+    </div>
+
+    <div id="status">Load an image or click a sample to begin.</div>
+
+    <div class="canvases">
+      <div class="canvas-wrap">
+        <strong>Input</strong>
+        <canvas id="inputCanvas" width="512" height="512"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <strong>Output</strong>
+        <canvas id="outputCanvas" width="512" height="512"></canvas>
+      </div>
+    </div>
+
+    <div id="benchPanel">
+      <h2>Performance benchmark</h2>
+      <p>
+        Benchmarks all 5 filters across all 5 variants (Sequential, CPU Shared 4/8/16T, GPU)
+        on the currently loaded image. Each configuration runs 2 warmups + 5 timed iterations.
+        Speedups are reported relative to Sequential.
+      </p>
+      <div class="row">
+        <label for="benchRadii">Sweep values</label>
+        <input id="benchRadii" type="text" value="1,2,4,8,12,16,20" style="width: 220px;" />
+        <button id="benchRadiiFull" type="button" title="Fill with 1..20">1..20</button>
+        <button id="benchRadiiShort" type="button" title="Quick preset">1,2,4,8,16</button>
+        <small style="color: #666; margin-left: 8px;">
+          (interpreted as kernel radius for blur filters, and as strength = value/10 for 3x3 filters)
+        </small>
+      </div>
+      <div class="row">
+        <label for="benchRuns">Runs</label>
+        <input id="benchRuns" type="number" min="1" max="20" value="5" style="width: 60px;" />
+        <label for="benchWarmup">Warmup</label>
+        <input id="benchWarmup" type="number" min="0" max="10" value="2" style="width: 60px;" />
+        <button id="runBench">Run benchmark</button>
+        <button id="downloadBenchCsv" disabled>Download CSV</button>
+      </div>
+      <div id="benchProgress"></div>
+
+      <h3 style="margin-top: 20px; font-size: 15px;">Scalability across filters</h3>
+      <svg id="benchScalingChart" width="1150" height="400" style="display: none;"></svg>
+      <div id="benchScalingTable"></div>
+
+      <textarea id="benchCsv" placeholder="CSV results will appear here after the benchmark runs." readonly></textarea>
+    </div>
+
+    <script type="module" src="./imageConvBrowser.js"></script>
+  </body>
+</html>

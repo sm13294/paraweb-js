@@ -1,0 +1,126 @@
+import {
+  buildRanges,
+  createWorkerUrl,
+  detectIdentityElement,
+  ensureSharedArrayBuffer,
+  initSharedFloat64,
+  initSharedFloat64FromArray,
+  initSharedUint8,
+} from "./workerUtils.js";
+
+export class AccumulatorSharedBrowser {
+  async accumulator(fn, inputData, initialValue, numThreads) {
+    if (!Array.isArray(inputData)) {
+      throw new Error("inputData must be an array");
+    }
+    if (inputData.length === 0) {
+      return initialValue;
+    }
+
+    ensureSharedArrayBuffer();
+
+    const threads =
+      numThreads || (navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4);
+    const length = inputData.length;
+    const { buffer: inputBuffer } = initSharedFloat64FromArray(inputData);
+    const { buffer: partialsBuffer } = initSharedFloat64(threads);
+    const { buffer: validBuffer } = initSharedUint8(threads);
+    const identityElement = detectIdentityElement(fn, initialValue);
+    const ranges = buildRanges(length, threads);
+
+    const workerSource = `
+      self.onmessage = (event) => {
+        const {
+          fn,
+          inputBuffer,
+          partialsBuffer,
+          validBuffer,
+          start,
+          end,
+          workerId,
+          identityElement,
+        } = event.data;
+        try {
+          const inputView = new Float64Array(inputBuffer);
+          const partialsView = new Float64Array(partialsBuffer);
+          const validView = new Uint8Array(validBuffer);
+          const accumulatorFn = new Function("acc", "curr", "return (" + fn + ")(acc, curr)");
+          if (start >= end) {
+            validView[workerId] = 0;
+            self.postMessage("done");
+            return;
+          }
+          let acc = identityElement;
+          for (let i = start; i < end; i++) {
+            acc = accumulatorFn(acc, inputView[i]);
+          }
+          partialsView[workerId] = acc;
+          validView[workerId] = 1;
+          self.postMessage("done");
+        } catch (error) {
+          self.postMessage({ error: true, message: String(error) });
+        }
+      };
+    `;
+
+    const workerUrl = createWorkerUrl(workerSource);
+
+    try {
+      const workers = Array.from({ length: threads }, () => new Worker(workerUrl));
+      const promises = workers.map((worker, i) => {
+        const { start, end } = ranges[i];
+        worker.postMessage({
+          fn: fn.toString(),
+          inputBuffer,
+          partialsBuffer,
+          validBuffer,
+          start,
+          end,
+          workerId: i,
+          identityElement,
+        });
+        return new Promise((resolve, reject) => {
+          worker.onmessage = (event) => {
+            const data = event.data;
+            if (data && data.error) {
+              reject(new Error(data.message));
+            } else {
+              resolve();
+            }
+          };
+          worker.onerror = reject;
+        }).finally(() => {
+          worker.terminate();
+        });
+      });
+
+      await Promise.all(promises);
+
+      const partialsView = new Float64Array(partialsBuffer);
+      const validView = new Uint8Array(validBuffer);
+      const validResults = [];
+      for (let i = 0; i < threads; i++) {
+        if (validView[i] === 1) {
+          validResults.push(partialsView[i]);
+        }
+      }
+
+      if (validResults.length === 0) {
+        return initialValue;
+      }
+
+      let combinedResult;
+      if (identityElement === 1) {
+        combinedResult = validResults.reduce((acc, val) => acc * val, 1);
+      } else {
+        combinedResult = validResults.reduce((acc, val) => acc + val, 0);
+      }
+
+      return identityElement === 1
+        ? initialValue * combinedResult
+        : initialValue + combinedResult;
+    } finally {
+      URL.revokeObjectURL(workerUrl);
+    }
+  }
+}

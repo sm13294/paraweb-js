@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ParaWeb Accumulator Browser Demo</title>
+    <style>
+      body {
+        font-family: "Times New Roman", Times, serif;
+        margin: 24px;
+      }
+      .row {
+        margin-bottom: 12px;
+      }
+      input, button, select {
+        font-family: inherit;
+        font-size: 14px;
+      }
+      .output {
+        white-space: pre-wrap;
+        background: #f5f5f5;
+        padding: 12px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ParaWeb Browser Demos</h1>
+    <div class="row">
+      <a href="./index.html">Map</a> |
+      <a href="./filter.html">Filter</a> |
+      <a href="./reduce.html">Reduce</a> |
+      <a href="./scan.html">Scan</a> |
+      <a href="./accumulator.html">Accumulator</a> |
+      <a href="./mapreduce.html">MapReduce</a> |
+      <a href="./scatter.html">Scatter</a> |
+      <a href="./stencil.html">Stencil</a> |
+      <a href="./farm.html">Farm</a> |
+      <a href="./pipeline.html">Pipeline</a> |
+      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
+      <a href="./benchmarks.html">Benchmarks</a>
+    </div>
+    <h2>Accumulator (Browser Worker) Demo</h2>
+    <div class="row">
+      <label for="size">Input size</label>
+      <input id="size" type="number" min="1" value="100000" />
+      <label for="max">Max value</label>
+      <input id="max" type="number" min="1" value="100" />
+    </div>
+    <div class="row">
+      <label for="fnSelect">Accumulator function</label>
+      <select id="fnSelect">
+        <option value="sum">Sum (initial 100)</option>
+        <option value="product">Product (initial 1)</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="threads">Threads</label>
+      <input id="threads" type="number" min="1" value="4" />
+      <button id="run">Run</button>
+    </div>
+    <div class="row">
+      <strong>Output</strong>
+      <div id="output" class="output"></div>
+    </div>
+    <script type="module">
+      import { AccumulatorBrowser } from "./accumulatorBrowser.js";
+
+      const accumulator = new AccumulatorBrowser();
+      const sizeEl = document.getElementById("size");
+      const maxEl = document.getElementById("max");
+      const fnSelectEl = document.getElementById("fnSelect");
+      const threadsEl = document.getElementById("threads");
+      const outputEl = document.getElementById("output");
+      const runBtn = document.getElementById("run");
+
+      runBtn.addEventListener("click", async () => {
+        outputEl.textContent = "Running...";
+        const size = Math.max(1, Number(sizeEl.value) || 1);
+        const maxVal = Math.max(1, Number(maxEl.value) || 100);
+        const input = Array.from({ length: size }, () =>
+          Math.floor(Math.random() * maxVal) + 1
+        );
+
+        const fnMap = {
+          sum: { fn: (acc, x) => acc + x, initial: 100 },
+          product: { fn: (acc, x) => acc * x, initial: 1 },
+        };
+        const { fn, initial } = fnMap[fnSelectEl.value];
+        const threads = Number(threadsEl.value) || undefined;
+
+        const start = performance.now();
+        try {
+          const result = await accumulator.accumulator(fn, input, initial, threads);
+          const elapsed = performance.now() - start;
+          outputEl.textContent = `Result: ${result}\nTime: ${elapsed.toFixed(2)}ms`;
+        } catch (error) {
+          outputEl.textContent = "Error: " + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>
