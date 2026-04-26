@@ -5,6 +5,8 @@
 
 ParaWeb is a TypeScript library of ten parallel programming patterns for Node.js Worker Threads, browser Web Workers, and WebGPU compute shaders. Each pattern exposes three implementation variants (Message Passing, SharedArrayBuffer, GPU) under a single calling convention, so switching between them is a single property access.
 
+**Live demos**: [https://paraweb-js.vercel.app](https://paraweb-js.vercel.app) — interactive per-pattern demos, an all-pattern benchmark dashboard, and an image-convolution case study, running entirely in the browser on MP / Shared / GPU.
+
 ## Patterns
 
 | Pattern | Description | Default variant |
@@ -111,14 +113,14 @@ npm run test:benchmark
 
 ## Try the demos online
 
-The interactive per-pattern demos and the all-pattern benchmark dashboard can be deployed straight to Vercel from a fork of this repo.
+The interactive per-pattern demos and the all-pattern benchmark dashboard are hosted at **[https://paraweb-js.vercel.app](https://paraweb-js.vercel.app)**. The same setup deploys straight to Vercel from a fork of this repo.
 
 ```bash
 # Push your fork; in Vercel: New Project → import the repo → Deploy.
 # (No build command needed; it serves static files.)
 ```
 
-The included [vercel.json](vercel.json) sets the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers required for `SharedArrayBuffer`, so all three variants (MP / Shared / GPU) work in the deployed app. The root URL redirects to `/browser-demo/`, which has the navigation across all demos and the [benchmark dashboard](browser-demo/benchmarks.html).
+In Vercel project settings, set **Root Directory** to `browser-demo`. The included [browser-demo/vercel.json](browser-demo/vercel.json) sets the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers required for `SharedArrayBuffer`, so all three variants (MP / Shared / GPU) work in the deployed app. The root URL serves the Map demo, with navigation to the [benchmark dashboard](browser-demo/benchmarks.html) and the [image-convolution case study](browser-demo/imageConv.html).
 
 GitHub Pages also works for the MP and GPU variants, but does not support custom headers, so the Shared variant will not run there without a service-worker workaround. Cloudflare Pages and Netlify are equivalent to Vercel.
 
