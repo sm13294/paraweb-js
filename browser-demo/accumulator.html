@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,21 +27,8 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>Accumulator (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size</label>
@@ -78,8 +67,9 @@
         outputEl.textContent = "Running...";
         const size = Math.max(1, Number(sizeEl.value) || 1);
         const maxVal = Math.max(1, Number(maxEl.value) || 100);
-        const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal) + 1
+        const input = Array.from(
+          { length: size },
+          () => Math.floor(Math.random() * maxVal) + 1,
         );
 
         const fnMap = {
@@ -91,7 +81,12 @@
 
         const start = performance.now();
         try {
-          const result = await accumulator.accumulator(fn, input, initial, threads);
+          const result = await accumulator.accumulator(
+            fn,
+            input,
+            initial,
+            threads,
+          );
           const elapsed = performance.now() - start;
           outputEl.textContent = `Result: ${result}\nTime: ${elapsed.toFixed(2)}ms`;
         } catch (error) {
@@ -99,5 +94,6 @@
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>

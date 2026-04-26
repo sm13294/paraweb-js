@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,21 +27,8 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>Stencil (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size</label>
@@ -50,7 +39,9 @@
     <div class="row">
       <label for="stencilSelect">Stencil kernel</label>
       <select id="stencilSelect">
-        <option value="12321" selected>[1,2,3,2,1] (paper benchmark, 5-point)</option>
+        <option value="12321" selected>
+          [1,2,3,2,1] (paper benchmark, 5-point)
+        </option>
         <option value="111">[1,1,1]</option>
         <option value="121">[1,2,1]</option>
         <option value="1111">[1,1,1,1]</option>
@@ -59,7 +50,9 @@
     <div class="row">
       <label for="workloadSelect">Per-element workload</label>
       <select id="workloadSelect">
-        <option value="trig15" selected>Heavy: weighted sum + 15-iteration trig refinement (paper)</option>
+        <option value="trig15" selected>
+          Heavy: weighted sum + 15-iteration trig refinement (paper)
+        </option>
         <option value="weightedSum">Weighted sum only</option>
       </select>
     </div>
@@ -105,14 +98,14 @@
         const size = Math.max(1, Number(sizeEl.value) || 1);
         const maxVal = Math.max(1, Number(maxEl.value) || 100);
         const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal)
+          Math.floor(Math.random() * maxVal),
         );
 
         const stencilMap = {
-          "12321": [1, 2, 3, 2, 1],
-          "111": [1, 1, 1],
-          "121": [1, 2, 1],
-          "1111": [1, 1, 1, 1],
+          12321: [1, 2, 3, 2, 1],
+          111: [1, 1, 1],
+          121: [1, 2, 1],
+          1111: [1, 1, 1, 1],
         };
         const kernel = stencilMap[stencilSelectEl.value];
         const workloadSelectEl = document.getElementById("workloadSelect");
@@ -124,7 +117,8 @@
             result += (neighbors[i] || 0) * stencilKernel[i];
           }
           for (let iter = 0; iter < 15; iter++) {
-            result = Math.sin(result * 0.01) * 100 + Math.cos(result * 0.01) * 50;
+            result =
+              Math.sin(result * 0.01) * 100 + Math.cos(result * 0.01) * 50;
             result = Math.sqrt(Math.abs(result) + 1);
           }
           return result;
@@ -146,17 +140,29 @@
           let result;
           if (variant === "gpu") {
             if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
-              throw new Error("WebGPU is not available in this browser/context.");
+              throw new Error(
+                "WebGPU is not available in this browser/context.",
+              );
             }
             const op = gpuStencilOpMap[workloadKey];
-            result = await new window.PW_GPU.Stencil().stencil(op, input, kernel);
+            result = await new window.PW_GPU.Stencil().stencil(
+              op,
+              input,
+              kernel,
+            );
           } else if (variant === "shared") {
-            result = await stencilShared.stencil(fn, input, kernel, threads, { type: "zero" });
+            result = await stencilShared.stencil(fn, input, kernel, threads, {
+              type: "zero",
+            });
           } else {
-            result = await stencilMP.stencil(fn, input, kernel, threads, { type: "zero" });
+            result = await stencilMP.stencil(fn, input, kernel, threads, {
+              type: "zero",
+            });
           }
           const elapsed = performance.now() - start;
-          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          const sample = Array.from(result.slice(0, 20))
+            .map((v) => Number(v).toFixed(3))
+            .join(", ");
           outputEl.textContent =
             `Output length: ${result.length}\n` +
             `Sample: ${sample}\n` +
@@ -166,5 +172,6 @@
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>

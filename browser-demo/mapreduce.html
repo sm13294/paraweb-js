@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,21 +27,8 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>MapReduce (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size</label>
@@ -50,7 +39,9 @@
     <div class="row">
       <label for="fnSelect">MapReduce scenario</label>
       <select id="fnSelect">
-        <option value="trig50Sum" selected>Heavy: 50-iteration trig+poly map then sum (paper benchmark)</option>
+        <option value="trig50Sum" selected>
+          Heavy: 50-iteration trig+poly map then sum (paper benchmark)
+        </option>
         <option value="doubleSum">Double then sum</option>
         <option value="squareSum">Square then sum</option>
         <option value="collatzSum">Collatz steps then sum</option>
@@ -99,8 +90,9 @@
         outputEl.textContent = "Running...";
         const size = Math.max(1, Number(sizeEl.value) || 1);
         const maxVal = Math.max(1, Number(maxEl.value) || 1000);
-        const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal) + 1
+        const input = Array.from(
+          { length: size },
+          () => Math.floor(Math.random() * maxVal) + 1,
         );
 
         const scenarios = {
@@ -110,7 +102,8 @@
             mapFn: (x) => {
               let v = x;
               for (let k = 0; k < 50; k++) {
-                v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+                v =
+                  Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
                 v = v * v + 1;
               }
               return v;
@@ -153,17 +146,35 @@
           let result;
           if (variant === "gpu") {
             if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
-              throw new Error("WebGPU is not available in this browser/context.");
+              throw new Error(
+                "WebGPU is not available in this browser/context.",
+              );
             }
             const cfg = gpuMapReduceMap[fnKey];
             if (!cfg) {
-              throw new Error(`GPU variant does not support the "${fnKey}" scenario in this demo.`);
+              throw new Error(
+                `GPU variant does not support the "${fnKey}" scenario in this demo.`,
+              );
             }
-            result = await new window.PW_GPU.MapReduce().mapReduce(cfg.mapOp, cfg.reduceOp, input);
+            result = await new window.PW_GPU.MapReduce().mapReduce(
+              cfg.mapOp,
+              cfg.reduceOp,
+              input,
+            );
           } else if (variant === "shared") {
-            result = await mapReduceShared.mapReduce(mapFn, reduceFn, input, threads);
+            result = await mapReduceShared.mapReduce(
+              mapFn,
+              reduceFn,
+              input,
+              threads,
+            );
           } else {
-            result = await mapReduceMP.mapReduce(mapFn, reduceFn, input, threads);
+            result = await mapReduceMP.mapReduce(
+              mapFn,
+              reduceFn,
+              input,
+              threads,
+            );
           }
           const elapsed = performance.now() - start;
           outputEl.textContent = `Result: ${result}\nTime: ${elapsed.toFixed(2)}ms`;
@@ -172,5 +183,6 @@
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>

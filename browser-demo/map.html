@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ParaWeb Filter Browser Demo</title>
+    <title>ParaWeb Map Browser Demo</title>
     <style>
       body {
         font-family: "Times New Roman", Times, serif;
@@ -14,9 +14,13 @@
       }
       input,
       button,
-      select {
+      textarea {
         font-family: inherit;
         font-size: 14px;
+      }
+      textarea {
+        width: 100%;
+        height: 80px;
       }
       .output {
         white-space: pre-wrap;
@@ -29,7 +33,12 @@
   <body>
     <h1>ParaWeb Benchmark Dashboard</h1>
     <div id="nav" class="row"></div>
-    <h2>Filter (Browser Worker) Demo</h2>
+    <div class="row">
+      <strong>Case study:</strong>
+      <a href="./imageConv.html">Interactive image convolution</a>
+      (pick a variant, drag the slider, watch the output update in real time).
+    </div>
+    <h2>Map (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size</label>
       <input id="size" type="number" min="1" value="100000" />
@@ -37,14 +46,15 @@
       <input id="max" type="number" min="1" value="1000" />
     </div>
     <div class="row">
-      <label for="fnSelect">Filter function</label>
+      <label for="fnSelect">Map function</label>
       <select id="fnSelect">
-        <option value="trig30gt2" selected>
-          Heavy: 30-iteration trig predicate &gt; 2 (paper benchmark)
+        <option value="trig50" selected>
+          Heavy: 50-iteration trig+poly (paper benchmark)
         </option>
-        <option value="even">Even numbers</option>
-        <option value="gt500">Greater than 500</option>
-        <option value="prime">Prime check</option>
+        <option value="double">Double (x * 2)</option>
+        <option value="squarePlus">Square plus 1 (x * x + 1)</option>
+        <option value="indexAdd">Add index (x + i)</option>
+        <option value="collatz">Collatz steps</option>
       </select>
     </div>
     <div class="row">
@@ -62,23 +72,31 @@
       <strong>Output</strong>
       <div id="output" class="output"></div>
     </div>
+    <p style="margin-top: 16px; color: #555">
+      Want to benchmark all patterns at once across MP/Shared/GPU variants with
+      a chart? See the
+      <a href="./index.html"><strong>Benchmark Dashboard</strong></a
+      >.
+    </p>
     <script src="./gpu-bundle.js"></script>
     <script type="module">
-      import { FilterBrowser } from "./filterBrowser.js";
-      import { FilterSharedBrowser } from "./filterSharedBrowser.js";
+      import { MapBrowser } from "./mapBrowser.js";
+      import { MapSharedBrowser } from "./mapSharedBrowser.js";
 
-      const filterMP = new FilterBrowser();
-      const filterShared = new FilterSharedBrowser();
+      const mapMP = new MapBrowser();
+      const mapShared = new MapSharedBrowser();
       const variantSelectEl = document.getElementById("variantSelect");
 
-      // Map predicate keys to a built-in WGSL operation name (matches the
-      // paper benchmark) or a custom WGSL expression returning bool. Scenarios
-      // that cannot be expressed compactly resolve to null.
-      const gpuPredMap = {
-        trig30gt2: "trig_gt2",
-        even: null,
-        gt500: { wgsl: "x > 500.0" },
-        prime: null,
+      // Map fnKey to either a built-in WGSL operation name (matches the paper
+      // benchmark) or a custom WGSL expression. Scenarios that cannot be
+      // expressed in WGSL without complex control flow (e.g., Collatz steps)
+      // resolve to null and produce an error message.
+      const gpuOpMap = {
+        trig50: "trig_50",
+        double: { wgsl: "x * 2.0" },
+        squarePlus: { wgsl: "x * x + 1.0" },
+        indexAdd: null,
+        collatz: null,
       };
       const sizeEl = document.getElementById("size");
       const maxEl = document.getElementById("max");
@@ -94,35 +112,39 @@
         const input = Array.from({ length: size }, () =>
           Math.floor(Math.random() * maxVal),
         );
-
+        const fnKey = fnSelectEl.value;
         const fnMap = {
-          // 30-iteration trig predicate followed by a threshold; matches the
-          // Filter workload reported in the paper (Section 5.2).
-          trig30gt2: (x) => {
+          // 50-iteration trig+poly transform; matches the Map workload reported in
+          // the paper (Section 5.2). Heavy enough that worker coordination amortizes.
+          trig50: (x) => {
             let v = x;
-            for (let k = 0; k < 30; k++) {
+            for (let k = 0; k < 50; k++) {
               v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+              v = v * v + 1;
             }
-            return v > 2;
+            return v;
           },
-          even: (x) => x % 2 === 0,
-          gt500: (x) => x > 500,
-          prime: (n) => {
-            if (n < 2) return false;
-            if (n === 2) return true;
-            if (n % 2 === 0) return false;
-            const sqrt = Math.sqrt(n);
-            for (let i = 3; i <= sqrt; i += 2) {
-              if (n % i === 0) return false;
+          double: (x) => x * 2,
+          squarePlus: (x) => x * x + 1,
+          indexAdd: (x, i) => x + i,
+          collatz: (n) => {
+            let steps = 0;
+            let num = n;
+            while (num !== 1) {
+              if (num % 2 === 0) {
+                num = num / 2;
+              } else {
+                num = 3 * num + 1;
+              }
+              steps++;
+              if (steps > 10000) break;
             }
-            return true;
+            return steps;
           },
         };
-        const fnKey = fnSelectEl.value;
         const fn = fnMap[fnKey];
         const threads = Number(threadsEl.value) || undefined;
         const variant = variantSelectEl.value;
-
         const start = performance.now();
         try {
           let result;
@@ -132,26 +154,25 @@
                 "WebGPU is not available in this browser/context.",
               );
             }
-            const pred = gpuPredMap[fnKey];
-            if (pred == null) {
+            const op = gpuOpMap[fnKey];
+            if (op == null) {
               throw new Error(
-                `GPU variant does not support the "${fnKey}" predicate in this demo. Pick the heavy paper workload or "Greater than 500".`,
+                `GPU variant does not support the "${fnKey}" scenario in this demo. Pick the heavy paper workload, double, or squarePlus.`,
               );
             }
-            result = await new window.PW_GPU.Filter().filter(pred, input);
+            result = await new window.PW_GPU.Map().map(op, input);
           } else if (variant === "shared") {
-            result = await filterShared.filter(fn, input, threads);
+            result = await mapShared.map(fn, input, threads);
           } else {
-            result = await filterMP.filter(fn, input, threads);
+            result = await mapMP.map(fn, input, threads);
           }
           const elapsed = performance.now() - start;
-          const sample = Array.from(result.slice(0, 20))
-            .map((v) => Number(v).toFixed(3))
-            .join(", ");
-          outputEl.textContent =
-            `Output length: ${result.length}\n` +
-            `Sample: ${sample}\n` +
-            `Time: ${elapsed.toFixed(2)}ms`;
+          const preview = Array.isArray(result)
+            ? JSON.stringify(result.slice(0, 20))
+            : Array.from(result.slice(0, 20))
+                .map((v) => Number(v).toFixed(3))
+                .join(", ");
+          outputEl.textContent = `Output length: ${result.length}\nSample: ${preview}\nTime: ${elapsed.toFixed(2)}ms`;
         } catch (error) {
           outputEl.textContent = "Error: " + error.message;
         }

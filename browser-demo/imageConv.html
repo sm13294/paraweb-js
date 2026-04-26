@@ -105,16 +105,7 @@
   </head>
   <body>
     <h1>ParaWeb: Interactive Image Convolution</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./imageConv.html"><strong>Image Convolution</strong></a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <div id="nav" class="row"></div>
     <p>
       Applies a separable Gaussian blur with a chosen kernel radius to the loaded image.
       Pick a variant, drag the slider, and watch the output update in real time. All
@@ -210,5 +201,6 @@
     </div>
 
     <script type="module" src="./imageConvBrowser.js"></script>
+      <script src="./nav.js"></script>
   </body>
 </html>

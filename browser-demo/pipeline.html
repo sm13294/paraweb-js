@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,21 +27,8 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>Pipeline (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size</label>
@@ -50,7 +39,9 @@
     <div class="row">
       <label for="fnSelect">Pipeline scenario</label>
       <select id="fnSelect">
-        <option value="trigPoly" selected>Heavy: 30-iteration trig then 20-iteration polynomial (paper)</option>
+        <option value="trigPoly" selected>
+          Heavy: 30-iteration trig then 20-iteration polynomial (paper)
+        </option>
         <option value="basic">Double → Add 1 → Square</option>
         <option value="collatzTrig">Collatz → Trig</option>
       </select>
@@ -97,8 +88,9 @@
         outputEl.textContent = "Running...";
         const size = Math.max(1, Number(sizeEl.value) || 1);
         const maxVal = Math.max(1, Number(maxEl.value) || 1000);
-        const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal) + 1
+        const input = Array.from(
+          { length: size },
+          () => Math.floor(Math.random() * maxVal) + 1,
         );
 
         const scenarios = {
@@ -109,7 +101,8 @@
             (x) => {
               let v = x;
               for (let k = 0; k < 30; k++) {
-                v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+                v =
+                  Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
               }
               return v;
             },
@@ -121,11 +114,7 @@
               return Math.round(v * 1000) / 1000;
             },
           ],
-          basic: [
-            (x) => x * 2,
-            (x) => x + 1,
-            (x) => x * x,
-          ],
+          basic: [(x) => x * 2, (x) => x + 1, (x) => x * x],
           collatzTrig: [
             (n) => {
               let steps = 0;
@@ -154,20 +143,29 @@
           let result;
           if (variant === "gpu") {
             if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
-              throw new Error("WebGPU is not available in this browser/context.");
+              throw new Error(
+                "WebGPU is not available in this browser/context.",
+              );
             }
             const gpuStages = gpuPipelineMap[fnKey];
             if (!gpuStages) {
-              throw new Error(`GPU variant does not support the "${fnKey}" scenario in this demo.`);
+              throw new Error(
+                `GPU variant does not support the "${fnKey}" scenario in this demo.`,
+              );
             }
-            result = await new window.PW_GPU.Pipeline().pipeline(gpuStages, input);
+            result = await new window.PW_GPU.Pipeline().pipeline(
+              gpuStages,
+              input,
+            );
           } else if (variant === "shared") {
             result = await pipelineShared.pipeline(stages, input, threads);
           } else {
             result = await pipelineMP.pipeline(stages, input, threads);
           }
           const elapsed = performance.now() - start;
-          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          const sample = Array.from(result.slice(0, 20))
+            .map((v) => Number(v).toFixed(3))
+            .join(", ");
           outputEl.textContent =
             `Output length: ${result.length}\n` +
             `Sample: ${sample}\n` +
@@ -177,5 +175,6 @@
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>

@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,21 +27,8 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>Divide-and-Conquer (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size (FFT requires a power of two)</label>
@@ -50,7 +39,9 @@
     <div class="row">
       <label for="fnSelect">Scenario</label>
       <select id="fnSelect">
-        <option value="fft" selected>FFT (paper benchmark, parallel Cooley-Tukey radix-2)</option>
+        <option value="fft" selected>
+          FFT (paper benchmark, parallel Cooley-Tukey radix-2)
+        </option>
         <option value="sum">Sum</option>
         <option value="max">Max</option>
         <option value="sort">Merge sort</option>
@@ -133,7 +124,8 @@
           // on a complex array of N points (interleaved real/imaginary in a
           // Float64Array). N must be a power of two.
           if ((size & (size - 1)) !== 0) {
-            outputEl.textContent = "FFT requires N to be a power of two; got " + size;
+            outputEl.textContent =
+              "FFT requires N to be a power of two; got " + size;
             return;
           }
           const buf = new Float64Array(2 * size);
@@ -145,7 +137,9 @@
             let result;
             if (variant === "gpu") {
               if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
-                throw new Error("WebGPU is not available in this browser/context.");
+                throw new Error(
+                  "WebGPU is not available in this browser/context.",
+                );
               }
               result = await new window.PW_GPU.DivideAndConquer().fft(buf);
             } else if (variant === "shared") {
@@ -156,7 +150,9 @@
             const elapsed = performance.now() - start;
             outputEl.textContent =
               `FFT length: ${result.length / 2} complex points\n` +
-              `First 5 (real, imag): ${Array.from(result.slice(0, 10)).map((v) => Number(v).toFixed(3)).join(", ")}\n` +
+              `First 5 (real, imag): ${Array.from(result.slice(0, 10))
+                .map((v) => Number(v).toFixed(3))
+                .join(", ")}\n` +
               `Time: ${elapsed.toFixed(2)}ms`;
           } catch (error) {
             outputEl.textContent = "Error: " + error.message;
@@ -165,12 +161,13 @@
         }
 
         if (variant === "gpu") {
-          outputEl.textContent = "GPU variant supports only the FFT scenario in this demo.";
+          outputEl.textContent =
+            "GPU variant supports only the FFT scenario in this demo.";
           return;
         }
 
         const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal)
+          Math.floor(Math.random() * maxVal),
         );
 
         const conquerFn = conquerMap[scenario];
@@ -182,18 +179,18 @@
             conquerFn,
             baseCaseFn,
             input,
-            threads
+            threads,
           );
           const elapsed = performance.now() - start;
           const preview = Array.isArray(result)
             ? JSON.stringify(result.slice(0, 20))
             : String(result);
-          outputEl.textContent =
-            `Result preview: ${preview}\nTime: ${elapsed.toFixed(2)}ms`;
+          outputEl.textContent = `Result preview: ${preview}\nTime: ${elapsed.toFixed(2)}ms`;
         } catch (error) {
           outputEl.textContent = "Error: " + error.message;
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>

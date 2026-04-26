@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,21 +27,8 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>Farm (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size</label>
@@ -50,7 +39,9 @@
     <div class="row">
       <label for="fnSelect">Farm function</label>
       <select id="fnSelect">
-        <option value="collatzTrig200" selected>Heavy: Collatz steps + 200-iteration trig refinement (paper)</option>
+        <option value="collatzTrig200" selected>
+          Heavy: Collatz steps + 200-iteration trig refinement (paper)
+        </option>
         <option value="double">Double</option>
         <option value="collatz">Collatz steps</option>
       </select>
@@ -97,8 +88,9 @@
         outputEl.textContent = "Running...";
         const size = Math.max(1, Number(sizeEl.value) || 1);
         const maxVal = Math.max(1, Number(maxEl.value) || 1000);
-        const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal) + 1
+        const input = Array.from(
+          { length: size },
+          () => Math.floor(Math.random() * maxVal) + 1,
         );
 
         const fnMap = {
@@ -151,11 +143,15 @@
           let result;
           if (variant === "gpu") {
             if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
-              throw new Error("WebGPU is not available in this browser/context.");
+              throw new Error(
+                "WebGPU is not available in this browser/context.",
+              );
             }
             const op = gpuFarmMap[fnKey];
             if (!op) {
-              throw new Error(`GPU variant does not support the "${fnKey}" scenario in this demo.`);
+              throw new Error(
+                `GPU variant does not support the "${fnKey}" scenario in this demo.`,
+              );
             }
             result = await new window.PW_GPU.Farm().farm(op, input);
           } else if (variant === "shared") {
@@ -164,7 +160,9 @@
             result = await farmMP.farm(fn, input, threads);
           }
           const elapsed = performance.now() - start;
-          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          const sample = Array.from(result.slice(0, 20))
+            .map((v) => Number(v).toFixed(3))
+            .join(", ");
           outputEl.textContent =
             `Output length: ${result.length}\n` +
             `Sample: ${sample}\n` +
@@ -174,5 +172,6 @@
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>

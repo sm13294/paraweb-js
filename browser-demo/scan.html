@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,26 +27,15 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>Scan (Browser Worker) Demo</h2>
     <p>
-      Inclusive prefix scan (running aggregate). Output[i] is the combined value of input[0..i].
-      The combine operator must be associative; per-element work is supplied as a separate
-      <code>mapFn</code> so correctness holds when input is chunked across workers.
+      Inclusive prefix scan (running aggregate). Output[i] is the combined value
+      of input[0..i]. The combine operator must be associative; per-element work
+      is supplied as a separate
+      <code>mapFn</code> so correctness holds when input is chunked across
+      workers.
     </p>
     <div class="row">
       <label for="size">Input size</label>
@@ -55,7 +46,10 @@
     <div class="row">
       <label for="fnSelect">Scan function</label>
       <select id="fnSelect">
-        <option value="sumTrig50" selected>Heavy: associative sum + 50-iteration trig per-element transform (paper)</option>
+        <option value="sumTrig50" selected>
+          Heavy: associative sum + 50-iteration trig per-element transform
+          (paper)
+        </option>
         <option value="sum">Prefix sum</option>
       </select>
     </div>
@@ -100,8 +94,9 @@
         outputEl.textContent = "Running...";
         const size = Math.max(1, Number(sizeEl.value) || 1);
         const maxVal = Math.max(1, Number(maxEl.value) || 100);
-        const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal) + 1
+        const input = Array.from(
+          { length: size },
+          () => Math.floor(Math.random() * maxVal) + 1,
         );
 
         const fnMap = {
@@ -113,7 +108,8 @@
             mapFn: (x) => {
               let v = x;
               for (let k = 0; k < 50; k++) {
-                v = Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
+                v =
+                  Math.sin(v) + Math.cos(v * 0.5) + Math.sqrt(Math.abs(v) + 1);
                 v = v * v + 1;
               }
               return v;
@@ -131,20 +127,31 @@
           let result;
           if (variant === "gpu") {
             if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
-              throw new Error("WebGPU is not available in this browser/context.");
+              throw new Error(
+                "WebGPU is not available in this browser/context.",
+              );
             }
             const cfg = gpuScanMap[fnKey];
             if (!cfg) {
-              throw new Error(`GPU variant does not support the "${fnKey}" scenario in this demo.`);
+              throw new Error(
+                `GPU variant does not support the "${fnKey}" scenario in this demo.`,
+              );
             }
-            result = await new window.PW_GPU.Scan().scan(cfg.op, input, identity, cfg.preOp);
+            result = await new window.PW_GPU.Scan().scan(
+              cfg.op,
+              input,
+              identity,
+              cfg.preOp,
+            );
           } else if (variant === "shared") {
             result = await scanShared.scan(fn, input, identity, threads, mapFn);
           } else {
             result = await scanMP.scan(fn, input, identity, threads, mapFn);
           }
           const elapsed = performance.now() - start;
-          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          const sample = Array.from(result.slice(0, 20))
+            .map((v) => Number(v).toFixed(3))
+            .join(", ");
           outputEl.textContent =
             `Output length: ${result.length}\n` +
             `Sample: ${sample}\n` +
@@ -154,5 +161,6 @@
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>

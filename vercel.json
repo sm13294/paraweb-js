@@ -16,10 +16,6 @@
     }
   ],
 
-  "rewrites": [
-    { "source": "/", "destination": "/benchmarks.html" }
-  ],
-
   "cleanUrls": true,
   "trailingSlash": false
 }

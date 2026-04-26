@@ -12,7 +12,9 @@
       .row {
         margin-bottom: 12px;
       }
-      input, button, select {
+      input,
+      button,
+      select {
         font-family: inherit;
         font-size: 14px;
       }
@@ -25,21 +27,8 @@
     </style>
   </head>
   <body>
-    <h1>ParaWeb Browser Demos</h1>
-    <div class="row">
-      <a href="./index.html">Map</a> |
-      <a href="./filter.html">Filter</a> |
-      <a href="./reduce.html">Reduce</a> |
-      <a href="./scan.html">Scan</a> |
-      <a href="./accumulator.html">Accumulator</a> |
-      <a href="./mapreduce.html">MapReduce</a> |
-      <a href="./scatter.html">Scatter</a> |
-      <a href="./stencil.html">Stencil</a> |
-      <a href="./farm.html">Farm</a> |
-      <a href="./pipeline.html">Pipeline</a> |
-      <a href="./divideandconquer.html">Divide-and-Conquer</a> |
-      <a href="./benchmarks.html">Benchmarks</a>
-    </div>
+    <h1>ParaWeb Benchmark Dashboard</h1>
+    <div id="nav" class="row"></div>
     <h2>Scatter (Browser Worker) Demo</h2>
     <div class="row">
       <label for="size">Input size</label>
@@ -50,7 +39,9 @@
     <div class="row">
       <label for="workloadSelect">Per-element workload</label>
       <select id="workloadSelect">
-        <option value="trig50" selected>Heavy: 50-iteration trig+poly (paper benchmark)</option>
+        <option value="trig50" selected>
+          Heavy: 50-iteration trig+poly (paper benchmark)
+        </option>
         <option value="identity">None (identity)</option>
       </select>
     </div>
@@ -117,15 +108,14 @@
         const size = Math.max(1, Number(sizeEl.value) || 1);
         const maxVal = Math.max(1, Number(maxEl.value) || 1000);
         const input = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * maxVal)
+          Math.floor(Math.random() * maxVal),
         );
         const indexData = Array.from({ length: size }, () =>
-          Math.floor(Math.random() * Math.max(1, size / 4))
+          Math.floor(Math.random() * Math.max(1, size / 4)),
         );
 
-        const conflictFn = fnSelectEl.value === "sum"
-          ? (a, b) => a + b
-          : undefined;
+        const conflictFn =
+          fnSelectEl.value === "sum" ? (a, b) => a + b : undefined;
         const workloadKey = workloadSelectEl.value;
         const mapFn = workloadMap[workloadKey];
         const threads = Number(threadsEl.value) || undefined;
@@ -136,19 +126,43 @@
           let result;
           if (variant === "gpu") {
             if (!window.PW_GPU || !(await window.PW_GPU.isGPUAvailable())) {
-              throw new Error("WebGPU is not available in this browser/context.");
+              throw new Error(
+                "WebGPU is not available in this browser/context.",
+              );
             }
             // GPU Scatter uses last-write-wins; the conflict-resolution selector
             // is a CPU-only knob here, so we ignore it on the GPU path.
             const preOp = gpuPreOpMap[workloadKey];
-            result = await new window.PW_GPU.Scatter().scatter(input, indexData, undefined, 0, preOp);
+            result = await new window.PW_GPU.Scatter().scatter(
+              input,
+              indexData,
+              undefined,
+              0,
+              preOp,
+            );
           } else if (variant === "shared") {
-            result = await scatterShared.scatter(input, indexData, 0, conflictFn, threads, mapFn);
+            result = await scatterShared.scatter(
+              input,
+              indexData,
+              0,
+              conflictFn,
+              threads,
+              mapFn,
+            );
           } else {
-            result = await scatterMP.scatter(input, indexData, 0, conflictFn, threads, mapFn);
+            result = await scatterMP.scatter(
+              input,
+              indexData,
+              0,
+              conflictFn,
+              threads,
+              mapFn,
+            );
           }
           const elapsed = performance.now() - start;
-          const sample = Array.from(result.slice(0, 20)).map((v) => Number(v).toFixed(3)).join(", ");
+          const sample = Array.from(result.slice(0, 20))
+            .map((v) => Number(v).toFixed(3))
+            .join(", ");
           outputEl.textContent =
             `Output length: ${result.length}\n` +
             `Sample: ${sample}\n` +
@@ -158,5 +172,6 @@
         }
       });
     </script>
+    <script src="./nav.js"></script>
   </body>
 </html>
