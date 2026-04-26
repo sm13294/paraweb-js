@@ -19,7 +19,7 @@
     { href: "./farm.html", label: "Farm" },
     { href: "./pipeline.html", label: "Pipeline" },
     { href: "./divideandconquer.html", label: "Divide-and-Conquer" },
-    { href: "./imageConv.html", label: "Image Convolution" },
+    { href: "./imageConv.html", label: "Image Convolution (Case Study)" },
   ];
 
   // Normalise the current path to a basename without trailing slash or
