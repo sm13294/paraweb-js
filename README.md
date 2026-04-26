@@ -120,7 +120,7 @@ The interactive per-pattern demos and the all-pattern benchmark dashboard are ho
 # (No build command needed; it serves static files.)
 ```
 
-In Vercel project settings, set **Root Directory** to `browser-demo`. The included [browser-demo/vercel.json](browser-demo/vercel.json) sets the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers required for `SharedArrayBuffer`, so all three variants (MP / Shared / GPU) work in the deployed app. The root URL serves the Map demo, with navigation to the [benchmark dashboard](browser-demo/benchmarks.html) and the [image-convolution case study](browser-demo/imageConv.html).
+No Vercel UI configuration is needed; the included [vercel.json](vercel.json) tells Vercel to skip install/build, serve `browser-demo/` directly, and set the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers required for `SharedArrayBuffer`. All three variants (MP / Shared / GPU) work in the deployed app. The root URL serves the Map demo, with navigation to the [benchmark dashboard](browser-demo/benchmarks.html) and the [image-convolution case study](browser-demo/imageConv.html).
 
 GitHub Pages also works for the MP and GPU variants, but does not support custom headers, so the Shared variant will not run there without a service-worker workaround. Cloudflare Pages and Netlify are equivalent to Vercel.
 

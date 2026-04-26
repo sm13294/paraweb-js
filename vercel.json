@@ -1,6 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
 
+  "buildCommand": "echo 'Static deployment; no build needed.'",
+  "outputDirectory": "browser-demo",
+  "installCommand": "echo 'Skipping npm install for static deployment.'",
+
   "headers": [
     {
       "source": "/(.*)",
@@ -10,10 +14,6 @@
         { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
       ]
     }
-  ],
-
-  "rewrites": [
-    { "source": "/",  "destination": "/browser-demo/index.html" }
   ],
 
   "cleanUrls": true,
