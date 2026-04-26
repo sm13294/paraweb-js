@@ -111,18 +111,17 @@ To run the benchmark suite from the paper:
 npm run test:benchmark
 ```
 
-## Try the demos online
+## Results
 
-The interactive per-pattern demos and the all-pattern benchmark dashboard are hosted at **[https://paraweb-js.vercel.app](https://paraweb-js.vercel.app)**. The same setup deploys straight to Vercel from a fork of this repo.
+The figures below summarise the performance evaluation reported in the paper. The full evaluation is reproducible from this repository: run `npm run test:benchmark` for Node.js results and open the [browser benchmark dashboard](https://paraweb-js.vercel.app) for the in-browser numbers.
 
-```bash
-# Push your fork; in Vercel: New Project → import the repo → Deploy.
-# (No build command needed; it serves static files.)
-```
+**Figure 2 — Speedup across all ten patterns (Node.js, CPU variants):** speedup over a sequential JavaScript baseline, log-scale y-axis, plotted across data sizes (Medium / Large / Extremely Large) and thread counts (2--16). Most compute-bound patterns reach 9--12x at 16 threads on the Shared variant; Reduce/Scan are bandwidth-bound below an arithmetic-intensity threshold; D&C plateaus at ~2.7x because of FFT's intrinsic cross-stage synchronization.
 
-No Vercel UI configuration is needed; the included [vercel.json](vercel.json) tells Vercel to skip install/build, serve `browser-demo/` directly, and set the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers required for `SharedArrayBuffer`. All three variants (MP / Shared / GPU) work in the deployed app. The root URL serves the [benchmark dashboard](browser-demo/index.html); the per-pattern demos and the [image-convolution case study](browser-demo/imageConv.html) are linked from its top navigation.
+![Speedup across all ten patterns](docs/images/fig2-speedups.png)
 
-GitHub Pages also works for the MP and GPU variants, but does not support custom headers, so the Shared variant will not run there without a service-worker workaround. Cloudflare Pages and Netlify are equivalent to Vercel.
+**Figure 3 — Real-time image convolution case study (3840x2160):** speedup over a sequential CPU baseline as the kernel radius grows from 1 to 20 on a 4K image. The non-separable emboss filter reaches up to **414x** on WebGPU at radius 20, where the GPU's 5,120 parallel lanes absorb the quadratic per-pixel cost.
+
+![Image convolution case study](docs/images/fig3-casestudy.png)
 
 ## Citing
 
