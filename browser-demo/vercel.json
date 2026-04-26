@@ -1,6 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
 
+  "buildCommand": "echo 'Static deployment; no build needed.'",
+  "outputDirectory": ".",
+  "installCommand": "echo 'Skipping npm install for static deployment.'",
+
   "headers": [
     {
       "source": "/(.*)",
