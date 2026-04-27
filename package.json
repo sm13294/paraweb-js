@@ -1,5 +1,5 @@
 {
-  "name": "paraweb",
+  "name": "paraweb-js",
   "version": "1.0.0",
   "description": "TypeScript library of ten parallel programming patterns for Node.js Worker Threads, browser Web Workers, and WebGPU compute shaders.",
   "main": "dist/index.js",

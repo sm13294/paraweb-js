@@ -1,6 +1,6 @@
 # ParaWeb
 
-[![npm](https://img.shields.io/npm/v/paraweb.svg)](https://www.npmjs.com/package/paraweb)
+[![npm](https://img.shields.io/npm/v/paraweb-js.svg)](https://www.npmjs.com/package/paraweb-js)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ParaWeb is a TypeScript library of ten parallel programming patterns for Node.js Worker Threads, browser Web Workers, and WebGPU compute shaders. Each pattern exposes three implementation variants (Message Passing, SharedArrayBuffer, GPU) under a single calling convention, so switching between them is a single property access.
@@ -25,7 +25,7 @@ ParaWeb is a TypeScript library of ten parallel programming patterns for Node.js
 ## Installation
 
 ```bash
-npm install paraweb
+npm install paraweb-js
 ```
 
 The Shared variants require `SharedArrayBuffer`. In Node.js this is available by default. In the browser, the page must be served with cross-origin isolation headers (`Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`).
@@ -37,7 +37,7 @@ The GPU variants require WebGPU. In modern browsers (Chrome 113+, Edge 113+, Fir
 Switching between the three variants is a single property access. The call site is otherwise identical.
 
 ```ts
-import paraweb from "paraweb";
+import paraweb from "paraweb-js";
 
 const f = (x: number) => Math.sin(x) * Math.cos(x * 0.5);
 const input = Array.from({ length: 1_000_000 }, (_, i) => i);
@@ -59,7 +59,7 @@ const y = await paraweb.map(f, input);  // uses Shared internally
 Patterns return `Promise`s and compose with ordinary JavaScript control flow:
 
 ```ts
-import paraweb from "paraweb";
+import paraweb from "paraweb-js";
 
 const denoise  = (x: number) => 0.25 * x + 0.5 * x + 0.25 * x;
 const features = (x: number) => Math.tanh(x);
