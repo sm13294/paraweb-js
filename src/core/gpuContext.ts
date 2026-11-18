@@ -3,6 +3,8 @@
  * Provides GPU device acquisition, caching, and availability detection.
  */
 
+import { clearPipelineCache } from "./gpuKernelCache";
+
 let cachedGPU: GPU | null | undefined = undefined; // undefined = not yet checked
 let cachedDevice: GPUDevice | null = null;
 
@@ -76,6 +78,7 @@ export async function getGPUDevice(): Promise<GPUDevice> {
   cachedDevice = await adapter.requestDevice({
     requiredLimits: {
       maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
+      maxBufferSize: adapter.limits.maxBufferSize,
       maxComputeWorkgroupSizeX: adapter.limits.maxComputeWorkgroupSizeX,
       maxComputeInvocationsPerWorkgroup: adapter.limits.maxComputeInvocationsPerWorkgroup,
     },
@@ -83,6 +86,9 @@ export async function getGPUDevice(): Promise<GPUDevice> {
 
   cachedDevice.lost.then(() => {
     cachedDevice = null;
+    // Pipelines of the lost device must not be reused (they are also keyed
+    // by device, so this only frees them early).
+    clearPipelineCache();
   });
 
   return cachedDevice;

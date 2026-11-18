@@ -1,6 +1,6 @@
 {
   "name": "paraweb-js",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "TypeScript library of ten parallel programming patterns for Node.js Worker Threads, browser Web Workers, and WebGPU compute shaders.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,12 +9,18 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./resident": {
+      "types": "./dist/resident/index.d.ts",
+      "default": "./dist/resident/index.js"
+    },
+    "./browser/*": "./browser-demo/*",
     "./package.json": "./package.json"
   },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "src/**/*.ts",
+    "browser-demo/*.js",
     "README.md",
     "LICENSE"
   ],
@@ -35,6 +41,7 @@
     "test:gpu": "npm run build && node dist/test/testMapGPU.js && node dist/test/testFilterGPU.js && node dist/test/testReduceGPU.js && node dist/test/testScanGPU.js && node dist/test/testMapReduceGPU.js && node dist/test/testScatterGPU.js && node dist/test/testStencilGPU.js && node dist/test/testFarmGPU.js && node dist/test/testPipelineGPU.js && node dist/test/testDivideAndConquerGPU.js",
     "test:gpu:functional": "npm run build && TEST_MODE=functional node dist/test/testMapGPU.js && TEST_MODE=functional node dist/test/testFilterGPU.js && TEST_MODE=functional node dist/test/testReduceGPU.js && TEST_MODE=functional node dist/test/testScanGPU.js && TEST_MODE=functional node dist/test/testMapReduceGPU.js && TEST_MODE=functional node dist/test/testScatterGPU.js && TEST_MODE=functional node dist/test/testStencilGPU.js && TEST_MODE=functional node dist/test/testFarmGPU.js && TEST_MODE=functional node dist/test/testPipelineGPU.js && TEST_MODE=functional node dist/test/testDivideAndConquerGPU.js",
     "test:gpu:benchmark": "npm run build && TEST_MODE=benchmark node dist/test/testMapGPU.js && TEST_MODE=benchmark node dist/test/testFilterGPU.js && TEST_MODE=benchmark node dist/test/testReduceGPU.js && TEST_MODE=benchmark node dist/test/testScanGPU.js && TEST_MODE=benchmark node dist/test/testMapReduceGPU.js && TEST_MODE=benchmark node dist/test/testScatterGPU.js && TEST_MODE=benchmark node dist/test/testStencilGPU.js && TEST_MODE=benchmark node dist/test/testFarmGPU.js && TEST_MODE=benchmark node dist/test/testPipelineGPU.js && TEST_MODE=benchmark node dist/test/testDivideAndConquerGPU.js",
+    "test:resident": "npm run build && node dist/test/testResident.js",
     "test:scan": "npm run build && node dist/test/testScan.js",
     "test:scan:functional": "npm run build && TEST_MODE=functional node dist/test/testScan.js",
     "test:scan:benchmark": "npm run build && TEST_MODE=benchmark node dist/test/testScan.js",

@@ -91,6 +91,21 @@ paraweb.mapReduce(mapFn, reduceOp, input, threads?);
 
 Each call returns a `Promise`. `threads` defaults to the number of available CPU cores.
 
+## Resident runtime (1.1)
+
+Interactive clients query the same data many times per second, so version 1.1 adds a resident runtime (`paraweb-js/resident`) that keeps data and workers alive between calls: a `ResidentPool` of persistent workers (Web Workers, worker_threads, or inline) with per-worker priority queues, resident `SharedArrayBuffer` columns, kernels compiled once per worker, and resident forms of Map, Filter, Reduce and MapReduce. The resident forms are chosen by argument type, so existing code keeps working:
+
+```ts
+import paraweb from "paraweb-js";
+import { ResidentPool } from "paraweb-js/resident";
+
+const pool = new ResidentPool(16);
+// { pool, key } in place of the thread count: the input is uploaded once and stays in the workers.
+const count = await paraweb.mapReduce(x => (x > 15 ? 1 : 0), (a, b) => a + b, data, { pool, key: "delay" });
+```
+
+A kernel object in place of the function runs a range kernel over resident columns (MapReduce: `{ map, combine }`; Filter: a predicate with incremental `FilterState`). `ResidentGPU` keeps columns in GPU buffers, with Float64 values as order-preserving 32-bit key pairs so that range predicates are exact. Tests: `npm run test:resident`. The browser forms of the original patterns are available as `paraweb-js/browser/<name>.js`. [ParaVega](https://github.com/sm13294/paravega), a parallel runtime for Vega, is built on this runtime.
+
 ## Constraints
 
 - The user-supplied function passed to a worker must be **self-contained**. Functions are reconstructed inside workers via `new Function()`, which does not preserve the caller's lexical scope. References to external helpers or to captured variables from the enclosing scope will throw at execution time. Inline the helper logic inside the function body, or pass additional data as part of the input array.
